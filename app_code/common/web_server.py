@@ -1,6 +1,6 @@
 import logging
 from cheroot.wsgi import Server as WSGIServer, PathInfoDispatcher
-from app_code import app_logging as al
+from app_code.common import app_logging as al
 
 WEB_DATA = {'wsgi_server': None}
 LOGGER = logging.getLogger(al.LOGGER_NAME)

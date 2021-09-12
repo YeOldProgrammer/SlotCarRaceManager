@@ -6,8 +6,14 @@ cheroot==8.5.2
 Flask==1.1.4
 Flask-Bootstrap==3.3.7.1
 dash==1.20.0
+dash_table
 dash-daq==0.5.0
 dash-bootstrap-components==0.12.2
 pylint==2.8.2
 click
 flask_sqlalchemy
+
+pandas
+lxml
+html5lib
+bs4

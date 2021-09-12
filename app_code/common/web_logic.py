@@ -6,7 +6,11 @@ import dash_html_components as html
 from dash.dependencies import Input, Output
 
 
-EXTERNAL_STYLE_SHEETS = [dbc.themes.BOOTSTRAP]
+# EXTERNAL_STYLE_SHEETS = [dbc.themes.BOOTSTRAP]
+EXTERNAL_STYLE_SHEETS = [
+    dbc.themes.SLATE,
+    # 'https://codepen.io/chriddyp/pen/bWLwgP.css'
+]
 
 
 def init_flask():
@@ -29,22 +33,6 @@ def init_dash(flask_app):
 
 FLASK_APP = init_flask()
 DASH_APP = init_dash(FLASK_APP)
-
-
-@DASH_APP.callback(Output('page-content', 'children'),
-                   [Input('url', 'pathname')])
-def display_page(pathname):
-    default_layout = [
-        html.Div(
-            children=[
-                html.Br(),
-                html.Div('WHAMO')
-            ]
-        ),
-        html.Div("Default HTML Layout")
-    ]
-
-    return default_layout
 
 
 @FLASK_APP.route('/heartbeat', methods=['GET'])

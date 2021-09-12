@@ -22,3 +22,8 @@ def load_data():
     ENV_VARS['DATA_DIR'] = os.path.join(ENV_VARS['BASE_DIR'], 'data')
     ENV_VARS['LOG_DIR'] = os.path.join(ENV_VARS['DATA_DIR'], 'logs')
     ENV_VARS['LOG_FILE'] = os.path.join(ENV_VARS['LOG_DIR'], f"{APP_NAME}.log")
+    ENV_VARS['DISPLAY_HEIGHT'] = os.environ.get('DISPLAY_HEIGHT')
+    ENV_VARS['MAX_RACE_COUNT'] = int(os.environ.get('MAX_RACE_COUNT'))
+
+
+load_data()

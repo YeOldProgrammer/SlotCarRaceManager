@@ -2,9 +2,7 @@ import sys
 import json
 import logging
 from flask_sqlalchemy import SQLAlchemy
-from app_code import config_data as cd
-from app_code import app_logging as al
-from app_code import web_logic as wl
+from app_code.common import config_data as cd, web_logic as wl, app_logging as al
 
 LOGGER = logging.getLogger(al.LOGGER_NAME)
 
@@ -52,3 +50,6 @@ def init_db():
     init_db_app()
     if DB_DATA['DB'] is None:
         LOGGER.error("Failed to init DB")
+
+
+init_db()

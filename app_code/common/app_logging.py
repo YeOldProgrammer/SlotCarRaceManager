@@ -2,8 +2,7 @@ import os
 import logging
 from logging import config
 import time
-from app_code import config_data as cd
-
+from app_code.common import config_data as cd
 
 LOG_FORMAT = '%(asctime)s %(levelname)-7s [%(filename)-28s:%(lineno)4d] %(message)s'
 LOGGER_NAME = 'default'
