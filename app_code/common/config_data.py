@@ -16,8 +16,12 @@ VALUE_BOTH_WINNER = 3
 
 
 def load_data():
-    env_var_file = os.path.join(os.getcwd(), 'data', APP_NAME + '.cfg')
+    data_dir = os.path.join(os.getcwd(), 'data')
+    env_var_file = os.path.join(data_dir, APP_NAME + '.cfg')
     if os.path.exists(env_var_file) is False:
+        if os.path.isdir(data_dir) is False:
+            os.makedirs(data_dir)
+
         with open(env_var_file, 'w') as CFG_FH:
             CFG_FH.write("""DISPLAY_HEIGHT=500
 MAX_RACE_COUNT=50
