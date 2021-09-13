@@ -24,8 +24,8 @@ class RaceData:
         self.driver_id_to_driver_name = {}
 
     def load_cars(self, race_id, heat_id):
-        self.race_id = race_id
-        self.heat_id = heat_id
+        self.race_id = int(race_id)
+        self.heat_id = int(heat_id)
         self.run_count = 0
         self.race_obj_list = []
         self.car_name_to_car_id = {}
@@ -70,11 +70,12 @@ class RaceData:
         run_obj_list = dcd.HeatDb.query.\
             filter_by(race_id=self.race_id).\
             filter_by(heat_id=self.heat_id).\
-            order_by(dcd.HeatDb.heat_id).\
+            order_by(dcd.HeatDb.run_id).\
             all()
 
         self.run_count = len(run_obj_list)
 
+        run_id = 0
         for run_obj in run_obj_list:
             car_id_1 = run_obj.car_id_left
             car_name_1 = self.car_id_to_car_name[car_id_1]['car_name']
@@ -89,8 +90,9 @@ class RaceData:
             key2 = driver_name_2 + ':' + car_name_2
 
             self.run_data.append({
-                'odd': False,
-                'selected': 0,
+                'run_id': run_id,
+                'odd': run_obj.odd,
+                'selected': run_obj.win_id,
                 'cars': [
                     {
                         'driver': driver_name_1,
@@ -108,11 +110,14 @@ class RaceData:
                     }
                 ]
             })
+            run_id += 1
 
     def shuffle_cars(self):
         drivers = []
         remaining_car_keys = []
         remaining_car_keys_by_driver = {}
+
+        LOGGER.info("        Shuffle")
 
         for race_obj in self.race_obj_list:
             car_name = self.car_id_to_car_name[race_obj.car_id]['car_name']
@@ -163,14 +168,22 @@ class RaceData:
                     remaining_car_keys.remove(key2)
                     run_id += 1
 
+                    odd = False
                     heat_obj = dcd.HeatDb({'race_id': self.race_id,
                                            'heat_id': self.heat_id,
                                            'run_id': run_id,
                                            'car_id_left': self.car_name_to_car_id[car1]['car_id'],
                                            'car_id_right': self.car_name_to_car_id[car2]['car_id'],
                                            'win_id': 0,
-                                           'odd': False,
+                                           'odd': odd,
                                            })
+
+                    LOGGER.info("            race_id=%2d, heat_id=%2d, run_id=%2d, odd=%-5s, car_id_left=%3d, "
+                                "car_id_right=%3d, win_id=%d", self.race_id, self.heat_id, run_id, odd,
+                                self.car_name_to_car_id[car1]['car_id'],
+                                self.car_name_to_car_id[car2]['car_id'],
+                                0
+                                )
 
                     dbd.DB_DATA['DB'].session.add(heat_obj)
                     dbd.DB_DATA['DB'].session.commit()
@@ -205,18 +218,19 @@ class RaceData:
         for run_id, run_dict in enumerate(self.run_data):
             car_one = run_dict['cars'][0]
             car_two = run_dict['cars'][1]
-            if run_dict['selected'] == 0:
+            if run_dict['selected'] == cd.VALUE_NO_WINNER:
                 sel_data = '     '
-            elif run_dict['selected'] == 1:
+            elif run_dict['selected'] == cd.VALUE_LEFT_WINNER:
                 sel_data = '<----'
-            elif run_dict['selected'] == 2:
+            elif run_dict['selected'] == cd.VALUE_RIGHT_WINNER:
                 sel_data = '---->'
             else:
                 sel_data = '?????'
 
-            run_data_str = "        | %4d | %-5s | %-8s | %-10s (%2d) | %s | %-8s | %-10s (%2d) |" %\
+            run_data_str = "        | %4d (%4d) | %-5s | %-8s | %-10s (%2d) | %s | %-8s | %-10s (%2d) |" %\
                             (
                                 run_id,
+                                run_dict['run_id'],
                                 run_dict['odd'],
                                 car_one['driver'],
                                 car_one['car'],
@@ -230,7 +244,27 @@ class RaceData:
             LOGGER.info(run_data_str)
 
     def set_race_info(self, run_id, value):
-        self.run_data[run_id]['selected'] = value
+        run_obj = dcd.HeatDb.query.\
+            filter_by(race_id=self.race_id).\
+            filter_by(heat_id=self.heat_id).\
+            filter_by(run_id=run_id + 1).\
+            first()
+
+        if run_obj is None:
+            LOGGER.error("HeatDb missing - race_id=%d, heat_id=%d, run_id=%d, value=%d",
+                         self.race_id, self.heat_id, run_id, value)
+            return
+
+        if value == cd.VALUE_BOTH_WINNER:
+            if run_obj.win_id == cd.VALUE_LEFT_WINNER:
+                run_obj.win_id = cd.VALUE_RIGHT_WINNER
+            else:
+                run_obj.win_id = cd.VALUE_LEFT_WINNER
+        else:
+            run_obj.win_id = value
+
+        dbd.DB_DATA['DB'].session.commit()
+        self.run_data[run_id]['selected'] = run_obj.win_id
 
 
 def load_default_data():

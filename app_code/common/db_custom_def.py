@@ -100,11 +100,11 @@ class HeatDb(DB_BASE):
     win_id = DB_COLUMN(DB_INTEGER, nullable=False)
     odd = DB_COLUMN(DB_BOOL, nullable=False)
 
-    UNIQUE_CONSTRAINT(race_id, car_id_left, car_id_right)
+    UNIQUE_CONSTRAINT(race_id, heat_id, run_id)
 
     def __repr__(self):
-        return f"{self.__class__}-race_id_{self.race_id}-heat_id_{self.heat_id}-run_id_{self.id}" + \
-               f"-car_id_left{self.car_id_left}-car_id_right{self.car_id_right}"
+        return f"{self.__class__}-race_id_{self.race_id}-heat_id_{self.heat_id}-run_id_{self.run_id}-odd_{self.odd}" + \
+               f"-car_id_left{self.car_id_left}-car_id_right{self.car_id_right}-win_id_{self.win_id}"
 
     def as_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
