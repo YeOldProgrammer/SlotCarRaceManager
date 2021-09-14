@@ -10,6 +10,7 @@ import app_code.dash_apps.app_layouts as ala
 import app_code.dash_apps.app_race_entry as are
 import app_code.dash_apps.app_race_manager as arm
 import app_code.common.race_logic as rl
+import webbrowser
 
 LOGGER = logging.getLogger(al.LOGGER_NAME)
 
@@ -28,7 +29,8 @@ def start_app():
         LOGGER.info("Start Dash Debug Server")
         wl.DASH_APP.run_server(debug=True, dev_tools_ui=True, dev_tools_props_check=True, port=8080)
     else:
-        LOGGER.info("Start Cheroot Web Server")
+        LOGGER.info("Start Cheroot Web Server and Web Browser")
+        webbrowser.open('http://127.0.0.1:8080')
         ws.run_web_server(server)
 
 
