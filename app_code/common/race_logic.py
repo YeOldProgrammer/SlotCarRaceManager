@@ -268,7 +268,7 @@ class RaceData:
 
 
 def load_default_data():
-    race_data_file = os.path.join(cd.ENV_VARS['DATA_DIR'], 'race_data.json')
+    race_data_file = os.path.join(cd.ENV_VARS['DATA_DIR'], 'default_race_data.json')
 
     # If the file does not exist skip this step
     if os.path.exists(race_data_file) is False:
