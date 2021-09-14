@@ -1,5 +1,6 @@
 import json
 import dash
+import time
 import logging
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
@@ -275,7 +276,7 @@ def gen_stats_row(race_data_obj):
 )
 @dash_kwarg(inputs)
 def generate_graph(**kwargs):
-
+    cb_start_time = time.time()
     ctx = dash.callback_context
 
     orig_url_params_str = kwargs[URL_ID]
@@ -421,5 +422,5 @@ def generate_graph(**kwargs):
     race_data_obj.display_race_info()
 
     output_return = rv1
-
+    LOGGER.info("    Callback time:%0.02f", time.time() - cb_start_time)
     return output_return

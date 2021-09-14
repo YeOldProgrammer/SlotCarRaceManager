@@ -1,4 +1,5 @@
 import dash
+import time
 import logging
 import dash_table
 import pandas as pd
@@ -147,6 +148,7 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
 def display_page(driver_dropdown, driver_add_n_clicks, driver_delete_n_clicks, car_add_sel_n_clicks,
                  car_add_all_n_clicks, car_delete_n_clicks, car_remove_n_clicks, start_race_n_clicks,
                  car_available_selected, car_available_data, car_data_selected, car_data, orig_url):
+    cb_start_time = time.time()
     ctx = dash.callback_context
 
     driver_obj_list = dcd.DriverDb.query.all()
@@ -172,7 +174,7 @@ def display_page(driver_dropdown, driver_add_n_clicks, driver_delete_n_clicks, c
             car_mapping[car_obj.car_name] = car_obj.id
 
     if not ctx.triggered:
-        LOGGER.debug("Race Entry Callback - not triggered")
+        LOGGER.debug("Race Entry Callback - not triggered - Callback time:%0.02f", time.time() - cb_start_time)
         return driver_list, car_list, updated_car_selected, dash.no_update, dash.no_update, new_url
 
     car_queued = dash.no_update
@@ -298,4 +300,5 @@ def display_page(driver_dropdown, driver_add_n_clicks, driver_delete_n_clicks, c
     if orig_url != new_url and new_url != dash.no_update:
         LOGGER.info("        Changing url\nfrom:%s\n  to:%s", orig_url, new_url)
 
+    LOGGER.info("    Callback time:%0.02f", time.time() - cb_start_time)
     return driver_list, car_list, updated_car_selected, car_queued, updated_car_data_selected, new_url
