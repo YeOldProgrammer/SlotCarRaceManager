@@ -1,3 +1,4 @@
+import sys
 import click
 import logging
 from app_code.common import config_data as cd
@@ -16,14 +17,18 @@ LOGGER = logging.getLogger(al.LOGGER_NAME)
 
 
 @click.command()
-def start_app():
+@click.option('--init_db', is_flag=True, default=False)
+@click.option('--list_races', is_flag=True, default=False)
+@click.option('--list_race')
+@click.option('--shuffle_race')
+def start_app(**kwargs):
     debug = False
     al.init_logging()
 
+    process_cli_args(**kwargs)
+
     LOGGER.info("Start")
     server = wl.DASH_APP.server
-
-    rl.load_default_data()
 
     if debug is True:
         LOGGER.info("Start Dash Debug Server")
@@ -32,6 +37,26 @@ def start_app():
         LOGGER.info("Start Cheroot Web Server and Web Browser")
         webbrowser.open('http://127.0.0.1:8080')
         ws.run_web_server(server)
+
+
+def process_cli_args(**kwargs):
+    if kwargs.get('init_db', False) is True:
+        rl.load_default_data()
+        sys.exit(0)
+
+    if kwargs.get('list_races', False) is True:
+        rl.list_race()
+        sys.exit(0)
+
+    list_race_id = kwargs.get('list_race', -1)
+    if list_race_id is not None and int(list_race_id) > -1:
+        rl.display_race(int(kwargs.get('list_race')))
+        sys.exit(0)
+
+    shuffle_race_id = kwargs.get('shuffle_race', -1)
+    if shuffle_race_id is not None and int(kwargs.get('shuffle_race', -1)) > -1:
+        rl.shuffle_race(int(kwargs.get('shuffle_race')))
+        sys.exit(0)
 
 
 if __name__ == '__main__':

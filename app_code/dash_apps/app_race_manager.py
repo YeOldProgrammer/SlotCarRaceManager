@@ -55,7 +55,7 @@ def get_run_id(check_id):
     return run_id
 
 
-def generate_row_data(run_id,
+def generate_row_data(run_id=None,
                       left_car='',
                       left_driver='',
                       left_check=False,
@@ -70,8 +70,6 @@ def generate_row_data(run_id,
                       right_font_color='lightgrey',
                       display_text=''):
 
-    check_id = gen_check_id(run_id)
-
     if row_visible is False:
         master_display_value_il = 'none'
         master_display_value_bl = 'none'
@@ -80,7 +78,7 @@ def generate_row_data(run_id,
     elif check_visible is False:
         master_display_value_il = 'inline-block'
         master_display_value_bl = 'block'
-        check_display_value = 'block'
+        check_display_value = 'none'
         display_data = 'Check not visible'
     else:
         master_display_value_il = 'inline-block'
@@ -106,11 +104,26 @@ def generate_row_data(run_id,
         if check_display_value == 'block':
             display_data += ', no winner selected'
 
-    display_run_id = run_id + 1
+    if run_id is not None:
+        check_id = gen_check_id(run_id)
+        display_run_id = run_id + 1
+        display_col = dbc.Col(html.H3(f'{display_run_id}'),
+                              style={'width': '50px', 'display': master_display_value_il}, width='auto')
+        check_list = dcc.Checklist(
+            options=[
+                {'label': '.    .', 'value': CLICK_LEFT},
+                {'label': '', 'value': CLICK_RIGHT}
+            ],
+            value=value_array,
+            id=check_id,
+            style={'display': check_display_value}
+        )
+    else:
+        display_col = dbc.Col(html.H3('', style={'width': '50px', 'display': 'none'}), width='auto')
+        check_list = html.Div()
 
     data = [
-        dbc.Col(html.H3(f'{display_run_id}'),
-                style={'width': '50px', 'display': master_display_value_il}, width='auto'),
+        display_col,
         dbc.Col(
             [
                 html.H4(left_driver, style={'display': 'inline-block', 'width': '200px'}),
@@ -126,10 +139,7 @@ def generate_row_data(run_id,
         dbc.Col(
             [
                 html.H3(style={'width': '40px'}),
-                dcc.Checklist(options=[{'label': '.    .', 'value': CLICK_LEFT}, {'label': '', 'value': CLICK_RIGHT}],
-                              value=value_array,
-                              id=check_id,
-                              style={'display': check_display_value}),
+                check_list,
             ],
             width='auto',
             style={'display': master_display_value_bl}
@@ -180,7 +190,10 @@ def gen_initial_div_data():
         inputs.append(Input(check_id, 'value'))
         outputs.append(Output(run_row_id, 'children'))
 
-        div_data, display_data = generate_row_data(run_id, display_text='', check_visible=False, row_visible=True)
+        div_data, display_data = generate_row_data(run_id=run_id,
+                                                   display_text='',
+                                                   check_visible=False,
+                                                   row_visible=False)
 
         div_data_output.append(
             dbc.Row(
@@ -234,8 +247,13 @@ ala.APP_LAYOUTS[ala.APP_RACE_MANAGER] = html.Div(
             [
                 html.H1('Race Manager'),
                 dbc.Row(id=STATS_ROW, style={'margin-left': '55px'}),
+                dbc.Row(generate_row_data(left_car='Left Track',
+                                          right_car='Right Track',
+                                          check_visible=False,
+                                          row_visible=True
+                )),
             ],
-            style={'height': '100px', 'height': '100px'}
+            style={'height': '100px', 'height': '140px'}
             # style={'height': '100px', 'backgroundColor': 'blue', 'height': '100px'}
         ),
         html.Div(
@@ -292,6 +310,9 @@ def generate_graph(**kwargs):
             new_url_params_str = url_params_dict.\
                 get('url', 'http://127.0.0.1:8080/race_manager').replace('race_manager', 'race_entry')
             LOGGER.info("Race Manager Callback (%s) - New Race Button Clicked", refresh)
+        elif button_id == URL_ID:
+            LOGGER.info("Race Manager Callback (%s) - URL Clicked)", refresh)
+            refresh = True
         else:
             LOGGER.info("Race Manager Callback (%s) - Button Clicked (%s)", refresh, button_id)
     else:
@@ -299,6 +320,8 @@ def generate_graph(**kwargs):
         LOGGER.info("Race Manager Callback (%s) - Nothing clicked", refresh)
 
     need_build = False
+    new_heat = False
+    abort_text = ''
     if 'race_id' in url_params_dict:
         if 'heat_id' not in url_params_dict:
             heat_obj = dcd.HeatDb.\
@@ -323,10 +346,19 @@ def generate_graph(**kwargs):
                 refresh = True
                 LOGGER.info("    Race_id %s, heat_id %s specified - reshuffle", url_params_dict['race_id'], url_params_dict['heat_id'])
                 need_build = True
+            elif button_id == NEXT_HEAT_BUTTON:
+                LOGGER.info("    Race_id %s, heat_id %s specified - new heat", url_params_dict['race_id'], url_params_dict['heat_id'])
+                race_data_obj.load_cars(race_id=url_params_dict['race_id'], heat_id=url_params_dict['heat_id'])
+                abort_text = race_data_obj.next_heat()
+                if abort_text == '':
+                    url_params_dict['heat_id'] = race_data_obj.heat_id + 1
+                    need_build = True
+                    refresh = True
             else:
                 LOGGER.info("    Race_id %s, heat_id %s specified", url_params_dict['race_id'], url_params_dict['heat_id'])
 
         race_data_obj.load_cars(race_id=url_params_dict['race_id'], heat_id=url_params_dict['heat_id'])
+
         if need_build is True:
             race_data_obj.build_race()
         else:
@@ -342,14 +374,22 @@ def generate_graph(**kwargs):
         LOGGER.info("    URL Change\n        from: %s\n          to: %s", orig_url_params_str, new_url_params_str)
 
     check_run_id = 0
+    check_run_id_before = 0
+    check_run_id_after = 0
+    check_run_id_2_after = 0
     if 'check_value' in button_id:
         check_run_id = get_run_id(button_id)
+
+        check_run_id_before = check_run_id - 1
+        check_run_id_after = check_run_id + 1
+        check_run_id_2_after = check_run_id + 2
 
     rv1 = [new_url_params_str, gen_stats_row(race_data_obj)]
 
     race_data = kwargs[STATS_ROW]
     first_race_id = 0
 
+    # Look for clicked button
     for kwarg in kwargs:
         run_id = get_run_id(kwarg)
 
@@ -364,12 +404,17 @@ def generate_graph(**kwargs):
             elif CLICK_RIGHT in kwargs[kwarg]:
                 race_data_obj.set_race_info(run_id, cd.VALUE_RIGHT_WINNER)
             else:
+                if first_race_id == 0:
+                    first_race_id = run_id
                 race_data_obj.set_race_info(run_id, cd.VALUE_NO_WINNER)
+
+    LOGGER.info("        Refresh:%s b:%d i:%d a1:%d a2:%d",
+                refresh, check_run_id_before, check_run_id, check_run_id_after, check_run_id_2_after)
 
     for run_id in range(int(cd.ENV_VARS['MAX_RACE_COUNT'])):
         if run_id >= race_data_obj.run_count:
             if refresh is True:
-                div_data, display_data = generate_row_data(run_id,
+                div_data, display_data = generate_row_data(run_id=run_id,
                                                            left_check=False,
                                                            right_check=False,
                                                            display_text='',
@@ -381,11 +426,13 @@ def generate_graph(**kwargs):
                 rv1.append(dash.no_update)
             continue
 
-        if refresh is False and run_id != check_run_id:
-            rv1.append(dash.no_update)
-            continue
+        if refresh is False:
+            if run_id < check_run_id_before or run_id > check_run_id_2_after:
+                rv1.append(dash.no_update)
+                continue
 
         display_text = ''
+        check_visible = False
         left_click = False
         right_click = False
         left_row_color = 'transparent'
@@ -403,19 +450,71 @@ def generate_graph(**kwargs):
             right_row_color = 'lightgreen'
             right_font_color = 'black'
 
-        div_data, display_data = generate_row_data(run_id=run_id,
-                                                   left_driver=run_data['cars'][0]['driver'],
-                                                   left_car=run_data['cars'][0]['car'],
-                                                   left_check=left_click,
-                                                   left_row_color=left_row_color,
-                                                   left_font_color=left_font_color,
-                                                   right_driver=run_data['cars'][1]['driver'],
-                                                   right_car=run_data['cars'][1]['car'],
-                                                   right_row_color=right_row_color,
-                                                   right_font_color=right_font_color,
-                                                   right_check=right_click,
-                                                   display_text=display_text,
-                                                   check_visible=False)
+        if refresh is True:
+            if refresh is True and run_id == first_race_id:
+                display_text = 'Racing'
+                check_visible = True
+            elif refresh is True and run_id == first_race_id + 1:
+                display_text = 'On Deck'
+                check_visible = False
+            else:
+                display_text = ''
+                check_visible = False
+        else:
+            if run_id == check_run_id_before:
+                display_text = ''
+                check_visible = True
+                LOGGER.info("Before:%d", run_id)
+            elif run_id == check_run_id:
+                display_text = ''
+                check_visible = True
+                LOGGER.info("Checked:%d", run_id)
+            elif run_id == check_run_id_after:
+                display_text = 'Racing'
+                check_visible = True
+                LOGGER.info("After1:%d", run_id)
+            elif run_id == check_run_id_2_after:
+                display_text = 'On Deck'
+                check_visible = False
+                LOGGER.info("After2:%d", run_id)
+            else:
+                display_text = ''
+                check_visible = False
+                LOGGER.info("Other:%d", run_id)
+
+        if len(run_data['cars']) == 1:
+            # Odd number of cars in this heat, odd car out
+            display_text = ''
+            div_data, display_data = generate_row_data(run_id=run_id,
+                                                       left_driver=run_data['cars'][0]['driver'],
+                                                       left_car=run_data['cars'][0]['car'],
+                                                       left_check=True,
+                                                       left_row_color=left_row_color,
+                                                       left_font_color=left_font_color,
+                                                       right_driver=None,
+                                                       right_car=None,
+                                                       right_row_color=right_row_color,
+                                                       right_font_color=right_font_color,
+                                                       right_check=right_click,
+                                                       display_text=display_text,
+                                                       check_visible=False,
+                                                       row_visible=True)
+        else:
+            div_data, display_data = generate_row_data(run_id=run_id,
+                                                       left_driver=run_data['cars'][0]['driver'],
+                                                       left_car=run_data['cars'][0]['car'],
+                                                       left_check=left_click,
+                                                       left_row_color=left_row_color,
+                                                       left_font_color=left_font_color,
+                                                       right_driver=run_data['cars'][1]['driver'],
+                                                       right_car=run_data['cars'][1]['car'],
+                                                       right_row_color=right_row_color,
+                                                       right_font_color=right_font_color,
+                                                       right_check=right_click,
+                                                       display_text=display_text,
+                                                       check_visible=check_visible,
+                                                       row_visible=True)
+
         LOGGER.info("        Update Row %3d (%-7s) - %s", run_id, 'Click', display_data)
         rv1.append(div_data)
 
