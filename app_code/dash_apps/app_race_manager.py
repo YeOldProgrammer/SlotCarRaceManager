@@ -7,6 +7,8 @@ import dash_bootstrap_components as dbc
 import dash_html_components as html
 from sqlalchemy import func
 from dash.exceptions import PreventUpdate
+# import plotly.express as px
+import plotly.graph_objects as go
 from dash.dependencies import Input, Output
 from app_code.common import app_logging as al
 import app_code.common.db_data as dbd
@@ -32,6 +34,7 @@ CLICK_RIGHT = 'right_check'
 NEXT_HEAT_BUTTON = BASE_ID + 'next_heat'
 RE_SHUFFLE_BUTTON = BASE_ID + 'shuffle'
 NEW_RACE_BUTTON = BASE_ID + 'new_race'
+REMAINING_PIE_CHART = BASE_ID + "race_remaining_pie_chart"
 STATS_ROW = BASE_ID + 'stats'
 URL_ID = BASE_ID + 'url'
 
@@ -64,6 +67,7 @@ def generate_row_data(run_id=None,
                       right_check=False,
                       row_visible=True,
                       check_visible=True,
+                      current_race=False,
                       left_row_color='transparent',
                       left_font_color='lightgrey',
                       right_row_color='transparent',
@@ -85,6 +89,11 @@ def generate_row_data(run_id=None,
         master_display_value_bl = 'block'
         check_display_value = 'block'
         display_data = ''
+
+    if current_race is False:
+        border_style = "2px black solid"
+    else:
+        border_style = "5px red solid"
 
     value_array = []
     if left_check is True and right_check is True:
@@ -130,7 +139,7 @@ def generate_row_data(run_id=None,
                 html.H5(left_car),
             ],
             width='auto',
-            style={"border": "2px black solid",
+            style={"border": border_style,
                    'display': master_display_value_il,
                    'backgroundColor': left_row_color,
                    'color': left_font_color,
@@ -150,7 +159,7 @@ def generate_row_data(run_id=None,
                 html.H5(right_car),
             ],
             width='auto',
-            style={"border": "2px black solid",
+            style={"border": border_style,
                    'display': master_display_value_il,
                    'backgroundColor': right_row_color,
                    'color': right_font_color,
@@ -180,6 +189,7 @@ def gen_initial_div_data():
     inputs.append(Input(STATS_ROW, 'children'))
     outputs.append(Output(URL_ID, 'href'))
     outputs.append(Output(STATS_ROW, 'children'))
+    outputs.append(Output(REMAINING_PIE_CHART, 'figure'))
 
     for idx in range(cd.ENV_VARS['MAX_RACE_COUNT']):
         run_id = idx
@@ -238,28 +248,85 @@ def build_url_params_str(params_dict):
     return url_params_str
 
 
-div_data = gen_initial_div_data()
+def gen_stats_row(race_data_obj=None):
+    if race_data_obj is not None:
+        heat_id = int(race_data_obj.heat_id)
+        driver_count = len(race_data_obj.driver_name_to_driver_id)
+        car_count = len(race_data_obj.car_name_to_car_id)
+    else:
+        heat_id = 0
+        driver_count = 0
+        car_count = 0
 
+    row_data = [
+        dbc.Col(html.H3("Heat: %d" % heat_id), style={'display': 'block'}, width='auto'),
+        dbc.Col(html.H3("Drivers: %d" % driver_count), style={'display': 'block'}, width='auto'),
+        dbc.Col(html.H3("Cars: %d" % car_count, style={'display': 'block'}), width='auto'),
+    ]
+
+    if race_data_obj is None:
+        labels = ['Remaining']
+        values = [0]
+        colors = ['lightgrey']
+    else:
+        total_race_count = 0
+        completed_race_count = 0
+        car_count = race_data_obj.orig_car_count
+        heat = 0
+
+        while car_count > 1:
+            heat += 1
+            odd = car_count % 2
+            half = int(car_count/2)
+            total_race_count += half
+            car_count = half + odd
+            if heat < race_data_obj.heat_id:
+                completed_race_count += half
+
+        for run_dict in race_data_obj.run_data:
+            if run_dict['selected'] != 0 and run_dict['odd'] is False:
+                completed_race_count += 1
+
+        labels = ['Completed', 'Remaining']
+        values = [completed_race_count, total_race_count - completed_race_count]
+        colors = ['lightgreen', 'lightgrey']
+
+    fig = go.Figure(data=[go.Pie(labels=labels, values=values, hole=0.5,
+                                 marker_colors=colors)])
+    fig.update_layout(showlegend=False, margin={'t': 0, 'l': 0, 'r': 0, 'b': 0},
+                      paper_bgcolor='rgba(0,0,0,0)',
+                      plot_bgcolor='rgba(0,0,0,0)'
+                      )
+    return row_data, fig
+
+div_data = gen_initial_div_data()
+stats_data, graph = gen_stats_row()
 ala.APP_LAYOUTS[ala.APP_RACE_MANAGER] = html.Div(
     [
         dcc.Location(id=URL_ID),
         html.Div(
             [
-                html.H1('Race Manager'),
-                dbc.Row(id=STATS_ROW, style={'margin-left': '55px'}),
-                dbc.Row(generate_row_data(left_car='Left Track',
-                                          right_car='Right Track',
-                                          check_visible=False,
-                                          row_visible=True
-                )),
+                dbc.Row([
+                    dbc.Col([
+                        html.H1('Race Manager'),
+                        dbc.Row(id=STATS_ROW, children=stats_data, style={'margin-left': '55px'}),
+                        html.Div(children=[
+                            html.H4('Left Track', style={'margin-left': '100px', 'display': 'inline-block'}),
+                            html.H4('Right Track', style={'margin-left': '220px', 'display': 'inline-block'}),
+                        ], style={'display': 'inline-block'}),
+                    ], width='auto'),
+                    dbc.Col([
+                        dcc.Graph(id=REMAINING_PIE_CHART, figure=graph, style={'height': '140px', 'width': '140px'})
+                    ], width='auto')
+                ]),
             ],
             style={'height': '100px', 'height': '140px'}
             # style={'height': '100px', 'backgroundColor': 'blue', 'height': '100px'}
         ),
         html.Div(
             children=div_data,
-            style={'margin-left': '60px', 'height': f"{cd.ENV_VARS['DISPLAY_HEIGHT']}px", 'overflow-y': 'scroll',
-                   'overflow-x': 'hidden'}
+            style={'margin-left': '60px', 'height': f"{cd.ENV_VARS['BODY_DISPLAY_HEIGHT']}px", 'overflow-y': 'scroll',
+                   'overflow-x': 'hidden', 'backgroundColor': cd.ENV_VARS['BODY_DISPLAY_COLOR']}
         ),
         html.Div(
             [
@@ -273,19 +340,6 @@ ala.APP_LAYOUTS[ala.APP_RACE_MANAGER] = html.Div(
     ],
     style={'margin-left': '50px', 'margin-top': '50px'}
 )
-
-
-def gen_stats_row(race_data_obj):
-    row_data = [
-        dbc.Col(html.H3("Heat: %d" % int(race_data_obj.heat_id)),
-                style={'display': 'block'}, width='auto'),
-        dbc.Col(html.H3("Drivers: %d" % len(race_data_obj.driver_name_to_driver_id)),
-                style={'display': 'block'}, width='auto'),
-        dbc.Col(html.H3("Cars: %d" % len(race_data_obj.car_name_to_car_id),
-                        style={'display': 'block'}), width='auto'),
-    ]
-
-    return row_data
 
 
 @wl.DASH_APP.callback(
@@ -383,8 +437,20 @@ def generate_graph(**kwargs):
         check_run_id_before = check_run_id - 1
         check_run_id_after = check_run_id + 1
         check_run_id_2_after = check_run_id + 2
-
-    rv1 = [new_url_params_str, gen_stats_row(race_data_obj)]
+        # check_run_id_before = -1
+        # check_run_id_after = -1
+        # check_run_id_2_after = -1
+        #
+        # if CLICK_LEFT in kwargs[button_id] or CLICK_RIGHT in kwargs[button_id]:
+        #     for idx in range(check_run_id, race_data_obj.run_count):
+        #         row_button_id = gen_check_id(idx)
+        #         if CLICK_LEFT in kwargs[row_button_id] or CLICK_RIGHT in kwargs[row_button_id]:
+        #             LOGGER.info("        clicked:%s - button:%s - value:%s (Clicked)",
+        #                         button_id, row_button_id, kwargs[row_button_id])
+        #         else:
+        #             LOGGER.info("        clicked:%s - button:%s - value:%s (None)",
+        #                         button_id, row_button_id, kwargs[row_button_id])
+        # else:
 
     race_data = kwargs[STATS_ROW]
     first_race_id = 0
@@ -411,6 +477,9 @@ def generate_graph(**kwargs):
     LOGGER.info("        Refresh:%s b:%d i:%d a1:%d a2:%d",
                 refresh, check_run_id_before, check_run_id, check_run_id_after, check_run_id_2_after)
 
+    stats_data, graph = gen_stats_row(race_data_obj)
+    rv1 = [new_url_params_str, stats_data, graph]
+
     for run_id in range(int(cd.ENV_VARS['MAX_RACE_COUNT'])):
         if run_id >= race_data_obj.run_count:
             if refresh is True:
@@ -433,6 +502,7 @@ def generate_graph(**kwargs):
 
         display_text = ''
         check_visible = False
+        current_race = False
         left_click = False
         right_click = False
         left_row_color = 'transparent'
@@ -472,6 +542,7 @@ def generate_graph(**kwargs):
             elif run_id == check_run_id_after:
                 display_text = 'Racing'
                 check_visible = True
+                current_race = True
                 LOGGER.info("After1:%d", run_id)
             elif run_id == check_run_id_2_after:
                 display_text = 'On Deck'
@@ -513,6 +584,7 @@ def generate_graph(**kwargs):
                                                        right_check=right_click,
                                                        display_text=display_text,
                                                        check_visible=check_visible,
+                                                       current_race=current_race,
                                                        row_visible=True)
 
         LOGGER.info("        Update Row %3d (%-7s) - %s", run_id, 'Click', display_data)

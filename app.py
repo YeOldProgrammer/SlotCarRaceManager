@@ -22,7 +22,7 @@ LOGGER = logging.getLogger(al.LOGGER_NAME)
 @click.option('--list_race')
 @click.option('--shuffle_race')
 def start_app(**kwargs):
-    debug = False
+    debug = True
     al.init_logging()
 
     process_cli_args(**kwargs)

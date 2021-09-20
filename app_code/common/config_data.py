@@ -23,7 +23,8 @@ def load_data():
             os.makedirs(data_dir)
 
         with open(env_var_file, 'w') as CFG_FH:
-            CFG_FH.write("""DISPLAY_HEIGHT=500
+            CFG_FH.write("""BODY_DISPLAY_HEIGHT=500
+BODY_DISPLAY_COLOR=none
 MAX_RACE_COUNT=50
 """)
         print(f"Generating configuration file '{env_var_file}'")
@@ -34,7 +35,8 @@ MAX_RACE_COUNT=50
     ENV_VARS['DATA_DIR'] = os.path.join(ENV_VARS['BASE_DIR'], 'data')
     ENV_VARS['LOG_DIR'] = os.path.join(ENV_VARS['DATA_DIR'], 'logs')
     ENV_VARS['LOG_FILE'] = os.path.join(ENV_VARS['LOG_DIR'], f"{APP_NAME}.log")
-    ENV_VARS['DISPLAY_HEIGHT'] = os.environ.get('DISPLAY_HEIGHT')
+    ENV_VARS['BODY_DISPLAY_HEIGHT'] = os.environ.get('BODY_DISPLAY_HEIGHT')
+    ENV_VARS['BODY_DISPLAY_COLOR'] = os.environ.get('BODY_DISPLAY_COLOR')
     ENV_VARS['MAX_RACE_COUNT'] = int(os.environ.get('MAX_RACE_COUNT'))
 
 

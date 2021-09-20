@@ -17,6 +17,7 @@ class RaceData:
         self.race_id = 0
         self.heat_id = 0
         self.run_count = 0
+        self.orig_car_count = 0
         self.run_data = []
         self.driver_balance = {}
         self.race_obj_list = []
@@ -34,6 +35,12 @@ class RaceData:
         self.car_id_to_car_name = {}
         self.driver_name_to_driver_id = {}
         self.driver_id_to_driver_name = {}
+        self.orig_car_count = 0
+
+        orig_race_obj_list = dcd.RaceDb.query.\
+            filter_by(race_id=self.race_id).\
+            all()
+        self.orig_car_count = len(orig_race_obj_list)
 
         self.race_obj_list = dcd.RaceDb.query.\
             filter_by(race_id=self.race_id).\
