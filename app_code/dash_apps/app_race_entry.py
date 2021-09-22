@@ -63,7 +63,12 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
                     style_data={
                         'overflow': 'hidden',
                         'textOverflow': 'ellipsis',
-                    }
+                    },
+                    style_header={'backgroundColor': 'rgb(30, 30, 30)'},
+                    style_cell={
+                        'backgroundColor': 'rgb(50, 50, 50)',
+                        'color': 'white'
+                    },
                 ),
                 html.Button('Remove from race', id=CAR_REMOVE_BUTTON,
                             style={'margin-left': '50px', 'margin-top': '10px'}),
@@ -74,7 +79,7 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
         dbc.Col(
             [
                 html.H3("Available Drivers"),
-                dcc.Dropdown(id=DRIVER_DROPDOWN, value=''),
+                dcc.Dropdown(id=DRIVER_DROPDOWN, value='', style={'color': 'black'}),
                 dbc.Row([
                     dbc.Col([
                         html.Button('Add New Driver', id=DRIVER_ADD_BUTTON,
@@ -100,7 +105,12 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
                     style_data={
                         'overflow': 'hidden',
                         'textOverflow': 'ellipsis',
-                    }
+                    },
+                    style_header={'backgroundColor': 'rgb(30, 30, 30)'},
+                    style_cell={
+                        'backgroundColor': 'rgb(50, 50, 50)',
+                        'color': 'white'
+                    },
                 ),
                 html.Button('Add Selected Car(s)', id=CAR_ADD_SEL_BUTTON,
                             style={'margin-left': '20px'}),

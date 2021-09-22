@@ -582,3 +582,10 @@ def load_default_data():
                 car_obj = dcd.CarDb({'driver_id': driver_obj.id, 'car_name': car_name})
                 dbd.DB_DATA['DB'].session.add(car_obj)
                 dbd.DB_DATA['DB'].session.commit()
+
+
+def display_loaded_data():
+    driver_count = dbd.DB_DATA['DB'].session.query(func.count(dcd.DriverDb.id)).scalar()
+    car_count = dbd.DB_DATA['DB'].session.query(func.count(dcd.CarDb.id)).scalar()
+
+    LOGGER.info("Database contains %d drivers with %d cars", driver_count, car_count)

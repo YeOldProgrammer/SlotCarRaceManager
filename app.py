@@ -22,13 +22,15 @@ LOGGER = logging.getLogger(al.LOGGER_NAME)
 @click.option('--list_race')
 @click.option('--shuffle_race')
 def start_app(**kwargs):
-    debug = True
+    debug = False
     al.init_logging()
 
     process_cli_args(**kwargs)
 
     LOGGER.info("Start")
     server = wl.DASH_APP.server
+
+    rl.display_loaded_data()
 
     if debug is True:
         LOGGER.info("Start Dash Debug Server")

@@ -22,10 +22,6 @@ import app_code.dash_apps.app_layouts as ala
 LOGGER = logging.getLogger(al.LOGGER_NAME)
 
 NO_ENTRY_COLOR = 'lightgrey'
-
-print("DISPLAY HEIGHT")
-print(json.dumps(cd.ENV_VARS, indent=4, default=str))
-
 inputs = []
 outputs = []
 BASE_ID = 'arm_'
