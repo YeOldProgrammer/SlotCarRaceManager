@@ -583,6 +583,8 @@ def load_default_data():
                 dbd.DB_DATA['DB'].session.add(car_obj)
                 dbd.DB_DATA['DB'].session.commit()
 
+    display_loaded_data()
+
 
 def display_loaded_data():
     driver_count = dbd.DB_DATA['DB'].session.query(func.count(dcd.DriverDb.id)).scalar()
