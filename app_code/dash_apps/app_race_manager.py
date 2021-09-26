@@ -27,6 +27,7 @@ outputs = []
 BASE_ID = 'arm_'
 CLICK_LEFT = 'left_check'
 CLICK_RIGHT = 'right_check'
+HEAT_SLIDER = BASE_ID + 'slider'
 NEXT_HEAT_BUTTON = BASE_ID + 'next_heat'
 RE_SHUFFLE_BUTTON = BASE_ID + 'shuffle'
 NEW_RACE_BUTTON = BASE_ID + 'new_race'
@@ -245,21 +246,17 @@ def build_url_params_str(params_dict):
 
 
 def gen_stats_row(race_data_obj=None):
+    max_heat = 0
     if race_data_obj is not None:
         heat_id = int(race_data_obj.heat_id)
         driver_count = len(race_data_obj.driver_name_to_driver_id)
-        car_count = len(race_data_obj.car_name_to_car_id)
+        orig_car_count = len(race_data_obj.car_name_to_car_id)
     else:
         heat_id = 0
         driver_count = 0
-        car_count = 0
+        orig_car_count = 0
 
-    row_data = [
-        dbc.Col(html.H3("Heat: %d" % heat_id), style={'display': 'block'}, width='auto'),
-        dbc.Col(html.H3("Drivers: %d" % driver_count), style={'display': 'block'}, width='auto'),
-        dbc.Col(html.H3("Cars: %d" % car_count, style={'display': 'block'}), width='auto'),
-    ]
-
+    car_count = orig_car_count
     if race_data_obj is None:
         labels = ['Remaining']
         values = [0]
@@ -272,6 +269,7 @@ def gen_stats_row(race_data_obj=None):
 
         while car_count > 1:
             heat += 1
+            max_heat += 1
             odd = car_count % 2
             half = int(car_count/2)
             total_race_count += half
@@ -293,7 +291,15 @@ def gen_stats_row(race_data_obj=None):
                       paper_bgcolor='rgba(0,0,0,0)',
                       plot_bgcolor='rgba(0,0,0,0)'
                       )
+
+    row_data = [
+        dbc.Col(html.H3("Heat: %d of %d" % (heat_id, max_heat)), style={'display': 'block'}, width='auto'),
+        dbc.Col(html.H3("Drivers: %d" % driver_count), style={'display': 'block'}, width='auto'),
+        dbc.Col(html.H3("Cars: %d" % orig_car_count, style={'display': 'block'}), width='auto'),
+    ]
+
     return row_data, fig
+
 
 div_data = gen_initial_div_data()
 stats_data, graph = gen_stats_row()
@@ -316,7 +322,7 @@ ala.APP_LAYOUTS[ala.APP_RACE_MANAGER] = html.Div(
                     ], width='auto')
                 ]),
             ],
-            style={'height': '100px', 'height': '140px'}
+            style={'height': '160px'}
             # style={'height': '100px', 'backgroundColor': 'blue', 'height': '100px'}
         ),
         html.Div(
