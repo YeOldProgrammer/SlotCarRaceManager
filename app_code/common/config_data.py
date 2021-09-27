@@ -16,7 +16,7 @@ VALUE_BOTH_WINNER = 3
 
 
 def load_data():
-    data_dir = os.path.join(os.getcwd(), 'data')
+    data_dir = os.path.join(os.getcwd(), 'default_data')
     env_var_file = os.path.join(data_dir, APP_NAME + '.cfg')
     if os.path.exists(env_var_file) is False:
         if os.path.isdir(data_dir) is False:
@@ -33,11 +33,16 @@ MAX_RACE_COUNT=50
 
     ENV_VARS['BASE_DIR'] = os.getcwd()
     ENV_VARS['DATA_DIR'] = os.path.join(ENV_VARS['BASE_DIR'], 'data')
+    ENV_VARS['DEFAULT_DATA_DIR'] = os.path.join(ENV_VARS['BASE_DIR'], 'default_data')
     ENV_VARS['LOG_DIR'] = os.path.join(ENV_VARS['DATA_DIR'], 'logs')
     ENV_VARS['LOG_FILE'] = os.path.join(ENV_VARS['LOG_DIR'], f"{APP_NAME}.log")
     ENV_VARS['BODY_DISPLAY_HEIGHT'] = os.environ.get('BODY_DISPLAY_HEIGHT')
     ENV_VARS['BODY_DISPLAY_COLOR'] = os.environ.get('BODY_DISPLAY_COLOR')
     ENV_VARS['MAX_RACE_COUNT'] = int(os.environ.get('MAX_RACE_COUNT'))
+
+    if os.path.isdir(ENV_VARS['DATA_DIR']) is False:
+        print(f"Generating data directory in '{ENV_VARS['DATA_DIR']}'")
+        os.makedirs(ENV_VARS['DATA_DIR'])
 
 
 load_data()

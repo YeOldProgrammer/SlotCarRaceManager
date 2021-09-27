@@ -191,9 +191,9 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
     [
         Output(DRIVER_DROPDOWN, 'options'),
         # Output(DRIVER_DROPDOWN, 'value'),
-        Output(CAR_AVAILABLE_TABLE, 'data'),
+        Output(CAR_AVAILABLE_TABLE, 'default_data'),
         Output(CAR_AVAILABLE_TABLE, 'selected_rows'),
-        Output(CAR_DATA_TABLE, 'data'),
+        Output(CAR_DATA_TABLE, 'default_data'),
         Output(CAR_DATA_TABLE, 'selected_rows'),
         Output(URL_ID, 'href'),
         Output(ADD_CAR_OPEN, 'style'),
@@ -209,9 +209,9 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
     ],
     [
         State(CAR_AVAILABLE_TABLE, 'selected_rows'),
-        State(CAR_AVAILABLE_TABLE, 'data'),
+        State(CAR_AVAILABLE_TABLE, 'default_data'),
         State(CAR_DATA_TABLE, 'selected_rows'),
-        State(CAR_DATA_TABLE, 'data'),
+        State(CAR_DATA_TABLE, 'default_data'),
         State(URL_ID, 'href')
     ]
 )
@@ -351,7 +351,7 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
         dcd.CarDb.query.filter_by(driver_id=driver_id).delete()
         dcd.DriverDb.query.filter_by(id=driver_id).delete()
 
-        # Should driver data be removed?
+        # Should driver default_data be removed?
         # dcd.RaceDb.query.filter_by(id=driver_id).delete()
         # dcd.HeatDb.query.filter_by(race_id=race_id).delete()
 

@@ -1,3 +1,4 @@
+import os
 import sys
 import click
 import logging
@@ -27,7 +28,7 @@ def start_app(**kwargs):
 
     process_cli_args(**kwargs)
 
-    LOGGER.info("Start")
+    LOGGER.info("Start (%s)", os.getcwd())
     server = wl.DASH_APP.server
 
     rl.display_loaded_data()
@@ -43,7 +44,7 @@ def start_app(**kwargs):
 
 def process_cli_args(**kwargs):
     if kwargs.get('init_db', False) is True:
-        rl.load_default_data()
+        rl.load_config_data()
         sys.exit(0)
 
     if kwargs.get('list_races', False) is True:

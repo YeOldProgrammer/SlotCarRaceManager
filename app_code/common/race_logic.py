@@ -1,6 +1,7 @@
 import random
 import logging
 import os
+import shutil
 import json
 from sqlalchemy import func, desc
 import app_code.common.app_logging as al
@@ -371,7 +372,7 @@ class RaceData:
         if len(remaining_car_keys) > 1:
             return False
 
-        # Remove this Heat's data
+        # Remove this Heat's default_data
         dcd.HeatDb.query.filter_by(race_id=self.race_id, heat_id=self.heat_id).delete()
         dbd.DB_DATA['DB'].session.commit()
         for heat_obj in heat_to_add_list:
@@ -558,9 +559,25 @@ def shuffle_race(race_id):
     rd_obj.display_race_info()
 
 
-def load_default_data():
-    LOGGER.info("Loading default data")
-    race_data_file = os.path.join(cd.ENV_VARS['DATA_DIR'], 'default_race_data.json')
+def load_default_data(file_name):
+    local_data = os.path.join(cd.ENV_VARS['DATA_DIR'], file_name)
+    default_data = os.path.join(cd.ENV_VARS['DEFAULT_DATA_DIR'], file_name)
+    if os.path.exists(local_data) is False:
+        if os.path.exists(default_data) is False:
+            raise FileNotFoundError("Missing data file '%s' and '%s'" % (default_data, local_data))
+        shutil.copy(default_data, local_data)
+
+    if os.path.exists(local_data) is False:
+        raise FileNotFoundError("Failed to copy '%s' to '%s'" % (default_data, local_data))
+
+    return local_data
+
+
+def load_config_data():
+    LOGGER.info("Loading default default_data: cwd='%s'", os.getcwd())
+
+    race_data_file = load_default_data('race_manager.cfg')
+    race_data_file = load_default_data('default_race_data.json')
 
     # If the file does not exist skip this step
     if os.path.exists(race_data_file) is False:
