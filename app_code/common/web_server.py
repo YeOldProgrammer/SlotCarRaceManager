@@ -1,6 +1,7 @@
 import logging
 from cheroot.wsgi import Server as WSGIServer, PathInfoDispatcher
 from app_code.common import app_logging as al
+from app_code.common import config_data as cd
 
 WEB_DATA = {'wsgi_server': None}
 LOGGER = logging.getLogger(al.LOGGER_NAME)
@@ -13,7 +14,7 @@ def run_web_server(server, default_host='0.0.0.0', default_port='8080'):
 
     display_host = default_host
     if display_host == '0.0.0.0':
-        display_host = '127.0.0.1'
+        display_host = cd.ENV_VARS['IP_ADDRESS']
 
     LOGGER.info("Starting web server on port http://%s:%d", display_host, web_server_port)
 

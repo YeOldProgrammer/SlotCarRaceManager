@@ -1,5 +1,5 @@
 import os
-import sys
+import socket
 from dotenv import load_dotenv
 
 APP_NAME = 'race_manager'
@@ -39,6 +39,11 @@ MAX_RACE_COUNT=50
     ENV_VARS['BODY_DISPLAY_HEIGHT'] = os.environ.get('BODY_DISPLAY_HEIGHT')
     ENV_VARS['BODY_DISPLAY_COLOR'] = os.environ.get('BODY_DISPLAY_COLOR')
     ENV_VARS['MAX_RACE_COUNT'] = int(os.environ.get('MAX_RACE_COUNT'))
+    try:
+        ENV_VARS['IP_ADDRESS'] = socket.gethostbyname(socket.gethostname())
+    except Exception as error_text:
+        print(f"Failed to get local IP address ({error_text})")
+    ENV_VARS['IP_ADDRESS'] = '127.0.0.1'
 
     if os.path.isdir(ENV_VARS['DATA_DIR']) is False:
         print(f"Generating data directory in '{ENV_VARS['DATA_DIR']}'")

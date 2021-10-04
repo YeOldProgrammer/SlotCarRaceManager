@@ -12,6 +12,7 @@ from dash.exceptions import PreventUpdate
 from dash.dependencies import Input, Output, State
 import app_code.common.web_logic as wl
 from app_code.common import app_logging as al
+from app_code.common import config_data as cd
 from app_code.common.dash_util import dash_kwarg
 import app_code.common.db_custom_def as dcd
 import app_code.dash_apps.app_layouts as ala
@@ -35,16 +36,17 @@ ADD_CAR_MODAL = BASE_ID + 'add_car_modal'
 ADD_CAR_OPEN = BASE_ID + 'add_car_button_open'
 ADD_CAR_INPUT = BASE_ID + 'add_car_input'
 ADD_CAR_INSERT = BASE_ID + 'add_car_button_insert'
+ADD_CAR_REFRESH = BASE_ID + 'add_car_button_refresh'
 ADD_CAR_CANCEL = BASE_ID + 'add_car_button_cancel'
 ADD_CAR_DRIVER_LABEL = BASE_ID + 'add_car_driver_label'
 
 DRIVER_DROPDOWN = BASE_ID + 'driver_dropdown'
 CAR_AVAILABLE_TABLE = BASE_ID + 'car_available_table'
-CAR_DATA_TABLE = BASE_ID + 'car_data_table'
-CAR_DELETE_BUTTON = BASE_ID + 'driver_delete'
+RACE_PARTICIPANTS_TABLE = BASE_ID + 'race_participants_table'
+CAR_DELETE_BUTTON = BASE_ID + 'car_del'
 CAR_ADD_SEL_BUTTON = BASE_ID + 'car_add_sel'
 CAR_ADD_ALL_BUTTON = BASE_ID + 'car_add_all'
-CAR_REMOVE_BUTTON = BASE_ID + 'car_remove'
+CAR_REMOVE_FROM_RACE_BUTTON = BASE_ID + 'car_remove'
 URL_ID = BASE_ID + 'url'
 
 ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
@@ -64,7 +66,7 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
             [
                 html.H3("Entries"),
                 dash_table.DataTable(
-                    id=CAR_DATA_TABLE,
+                    id=RACE_PARTICIPANTS_TABLE,
                     columns=[
                         {'name': 'Driver', 'id': 'driver_name', 'type': 'text'},
                         {'name': 'Car', 'id': 'car_name', 'type': 'text'},
@@ -87,7 +89,7 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
                         'textAlign': 'left'
                     },
                 ),
-                dbc.Button('Remove from race', id=CAR_REMOVE_BUTTON,
+                dbc.Button('Remove from race', id=CAR_REMOVE_FROM_RACE_BUTTON,
                             style={'margin-top': '10px', 'width': '100%'}),
             ],
             width='auto',
@@ -98,6 +100,10 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
                 html.H3("Available Drivers"),
                 dcc.Dropdown(id=DRIVER_DROPDOWN, value='', style={'color': 'black'}),
                 dbc.Row([
+                    # dbc.Col([
+                    #     dbc.Button('Delete Driver from DB (and all associated cars)',
+                    #                id=DRIVER_DELETE_BUTTON, style={'margin-left': '20px'}),
+                    # ], width='auto'),
                     dbc.Col([
                         dbc.Button("Add New Driver", id=ADD_DRIVER_OPEN, style={'margin-left': '20px'}),
                     ], width='auto'),
@@ -105,7 +111,7 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
                         dbc.Button('Delete Driver from DB (and all associated cars)',
                                    id=DRIVER_DELETE_BUTTON, style={'margin-left': '20px'}),
                         # dcc.ConfirmDialogProvider(
-                        #     children=dbc.Button('Delete Driver from DB (and all associated cars)'),
+                        #     children=html.Button('Delete Driver from DB (and all associated cars)'),
                         #     id=DRIVER_DELETE_BUTTON,
                         #     message='Are you sure you want to delete this driver from the DB?',
                         # ),
@@ -144,6 +150,7 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
                 dbc.Button('Add All Car(s)', id=CAR_ADD_ALL_BUTTON, style={'margin-left': '20px'}),
                 dbc.Button('Add New Car', id=ADD_CAR_OPEN, style={'margin-left': '20px'}),
                 dbc.Button('Delete Selected Cars from DB', id=CAR_DELETE_BUTTON, style={'margin-left': '20px'}),
+                dbc.Button('Refresh', id=ADD_CAR_REFRESH, style={'margin-left': '20px', 'display': 'none'}),
             ],
             width='auto',
             style={"border": "2px black solid", 'padding': '20px', 'margin-left': '50px'}
@@ -191,32 +198,33 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
     [
         Output(DRIVER_DROPDOWN, 'options'),
         # Output(DRIVER_DROPDOWN, 'value'),
-        Output(CAR_AVAILABLE_TABLE, 'default_data'),
+        Output(CAR_AVAILABLE_TABLE, 'data'),
         Output(CAR_AVAILABLE_TABLE, 'selected_rows'),
-        Output(CAR_DATA_TABLE, 'default_data'),
-        Output(CAR_DATA_TABLE, 'selected_rows'),
+        Output(RACE_PARTICIPANTS_TABLE, 'data'),
+        Output(RACE_PARTICIPANTS_TABLE, 'selected_rows'),
         Output(URL_ID, 'href'),
         Output(ADD_CAR_OPEN, 'style'),
     ],
     [
         Input(DRIVER_DROPDOWN, 'value'),
-        Input(DRIVER_DELETE_BUTTON, 'submit_n_clicks'),
+        Input(DRIVER_DELETE_BUTTON, 'n_clicks'),
         Input(CAR_ADD_SEL_BUTTON, 'n_clicks'),
         Input(CAR_ADD_ALL_BUTTON, 'n_clicks'),
         Input(CAR_DELETE_BUTTON, 'n_clicks'),
-        Input(CAR_REMOVE_BUTTON, 'n_clicks'),
+        Input(CAR_REMOVE_FROM_RACE_BUTTON, 'n_clicks'),
         Input(START_RACE_BUTTON, 'n_clicks'),
+        Input(ADD_CAR_REFRESH, 'n_clicks'),
     ],
     [
         State(CAR_AVAILABLE_TABLE, 'selected_rows'),
-        State(CAR_AVAILABLE_TABLE, 'default_data'),
-        State(CAR_DATA_TABLE, 'selected_rows'),
-        State(CAR_DATA_TABLE, 'default_data'),
+        State(CAR_AVAILABLE_TABLE, 'data'),
+        State(RACE_PARTICIPANTS_TABLE, 'selected_rows'),
+        State(RACE_PARTICIPANTS_TABLE, 'data'),
         State(URL_ID, 'href')
     ]
 )
 def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
-                 car_add_all_n_clicks, car_delete_n_clicks, car_remove_n_clicks, start_race_n_clicks,
+                 car_add_all_n_clicks, car_delete_n_clicks, car_remove_n_clicks, start_race_n_clicks, refresh_n_clicks,
                  car_available_selected, car_available_data, car_data_selected, car_data, orig_url):
     cb_start_time = time.time()
     ctx = dash.callback_context
@@ -256,9 +264,8 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
         return driver_list, car_list, updated_car_selected, dash.no_update, dash.no_update, new_url,\
                default_add_new_car_style
 
-
     car_queued = dash.no_update
-    LOGGER.info("Race Entry Callback")
+    LOGGER.info("Race Entry Callback car_list=%s", car_list)
 
     button_id = ctx.triggered[0]['prop_id'].split('.')[0]
     if button_id == CAR_ADD_SEL_BUTTON or button_id == CAR_ADD_ALL_BUTTON:
@@ -267,11 +274,12 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
 
         if button_id == CAR_ADD_SEL_BUTTON:
             for car_idx in car_available_selected:
-                car_name = car_available_data[car_idx]['car_name']
+                # car_name = car_available_data[car_idx]['car_name']
+                car_name = car_list[car_idx]['car_name']
                 car_names.append(car_name)
             LOGGER.info("    Clicked Add Selected Car Button %d (%s)", len(car_names), car_names)
         else:
-            for car_dict in car_available_data:
+            for car_dict in car_list:
                 car_names.append(car_dict['car_name'])
             LOGGER.info("    Clicked Add All Cars Button %d (%s)", len(car_names), car_names)
 
@@ -303,10 +311,11 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
             LOGGER.info("        %d new cars added.", queued_count)
 
     elif button_id == DRIVER_DROPDOWN:
-        LOGGER.info("    Changed selected driver: (%s)", driver_dropdown)
+        LOGGER.info("    Changed selected driver: (%s) - %d cars", driver_dropdown, len(car_list))
         updated_car_selected = []
+        # car_list, updated_car_selected, car_queued, updated_car_data_selected
 
-    elif button_id == CAR_REMOVE_BUTTON:
+    elif button_id == CAR_REMOVE_FROM_RACE_BUTTON:
         car_queued = []
         car_names = []
         for car_idx, car_data_dict in enumerate(car_data):
@@ -328,7 +337,7 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
             race_id = 0
         race_id += 1
 
-        new_url = f'http://127.0.0.1:8080/race_manager?race_id={race_id}'
+        new_url = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/race_manager?race_id={race_id}"
 
         # Shouldn't happen, but delete anything with new race id
         dcd.RaceDb.query.filter_by(race_id=race_id).delete()
@@ -343,6 +352,9 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
             dbd.DB_DATA['DB'].session.commit()
 
     elif button_id == DRIVER_DELETE_BUTTON:
+        if driver_dropdown is None:
+            raise PreventUpdate
+
         LOGGER.info("    Delete Driver from DB (%s)", driver_dropdown)
         if driver_dropdown not in driver_mapping:
             raise PreventUpdate
@@ -351,12 +363,14 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
         dcd.CarDb.query.filter_by(driver_id=driver_id).delete()
         dcd.DriverDb.query.filter_by(id=driver_id).delete()
 
-        # Should driver default_data be removed?
-        # dcd.RaceDb.query.filter_by(id=driver_id).delete()
-        # dcd.HeatDb.query.filter_by(race_id=race_id).delete()
-
         dbd.DB_DATA['DB'].session.commit()
         driver_list.remove({'label': driver_dropdown, 'value': driver_dropdown})
+
+        if car_data is None or len(car_data) == 0:
+            LOGGER.info("    Delete Driver - unable to start race - no cars selected")
+            return driver_list, car_list, updated_car_selected, car_queued, updated_car_data_selected, new_url, \
+                   default_add_new_car_style
+
         car_in_list = []
         for car_dict in car_data:
             if car_dict['driver_id'] == driver_id:
@@ -382,6 +396,38 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
 
         new_driver = ''
 
+    elif button_id == CAR_DELETE_BUTTON:
+        if len(car_available_selected) == 0:
+            LOGGER.info("        Nothing to remove")
+            raise PreventUpdate
+
+        for idx in car_available_selected:
+            car_name = car_list[idx]['car_name']
+            dcd.CarDb.query.filter_by(car_name=car_name).delete()
+
+        output_list = []
+        for val_dict in car_list:
+            remove = False
+            for idx in car_available_selected:
+                car_name = car_list[idx]['car_name']
+                if val_dict['car_name'] == car_name:
+                    remove = True
+
+            if remove is False:
+                output_list.append(val_dict)
+
+        car_list = output_list
+        dbd.DB_DATA['DB'].session.commit()
+
+        car_queued = []
+        for car_idx, car_data_dict in enumerate(car_data):
+            if car_idx in car_data_selected:
+                continue
+            car_queued.append(car_data_dict)
+
+    elif button_id == ADD_CAR_REFRESH:
+        a = 1
+
     if orig_url != new_url and new_url != dash.no_update:
         LOGGER.info("        Changing url\nfrom:%s\n  to:%s", orig_url, new_url)
 
@@ -391,10 +437,12 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
     return driver_list, car_list, updated_car_selected, car_queued, updated_car_data_selected, new_url,\
            default_add_new_car_style
 
+
 @wl.DASH_APP.callback(
     [
         Output(ADD_DRIVER_MODAL, "is_open"),
         Output(DRIVER_DROPDOWN, "value"),
+        Output(ADD_DRIVER_INPUT, "value"),
     ],
     [
         Input(ADD_DRIVER_OPEN, "n_clicks"),
@@ -408,22 +456,28 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
 )
 def modal_add_driver(open_button, insert_button, cancel_button, is_open, driver_input):
     if not open_button and not insert_button and not cancel_button:
-        return is_open, dash.no_update
+        return is_open, dash.no_update, dash.no_update
 
-    if insert_button:
+    ctx = dash.callback_context
+    if ctx.triggered and ctx.triggered[0]['prop_id'].split('.')[0] == ADD_DRIVER_INSERT:
         LOGGER.info("ADD Driver (%s)", driver_input)
+        driver_exist = dcd.DriverDb.query.filter_by(driver_name=driver_input).first()
+        if driver_exist:
+            return False, driver_input, ''
+
         driver_obj = dcd.DriverDb({'driver_name': driver_input})
         dbd.DB_DATA['DB'].session.add(driver_obj)
         dbd.DB_DATA['DB'].session.commit()
-        return False, driver_input
+        return False, driver_input, ''
 
-    return not is_open, dash.no_update
+    return not is_open, dash.no_update, dash.no_update
 
 
 @wl.DASH_APP.callback(
     Output(ADD_CAR_MODAL, "is_open"),
     Output(ADD_CAR_DRIVER_LABEL, "children"),
     Output(ADD_CAR_INPUT, "value"),
+    Output(ADD_CAR_REFRESH, 'n_clicks'),
     [
         Input(ADD_CAR_OPEN, "n_clicks"),
         Input(ADD_CAR_INSERT, "n_clicks"),
@@ -432,14 +486,15 @@ def modal_add_driver(open_button, insert_button, cancel_button, is_open, driver_
     [
         State(ADD_CAR_MODAL, "is_open"),
         State(DRIVER_DROPDOWN, "value"),
-        State(ADD_CAR_INPUT, "value")
+        State(ADD_CAR_INPUT, "value"),
+        State(ADD_CAR_REFRESH, 'n_clicks'),
     ],
 )
-def modal_add_car(open_button, insert_button, cancel_button, is_open, driver_name, car_input):
+def modal_add_car(open_button, insert_button, cancel_button, is_open, driver_name, car_input, refresh_n_clicks):
     ctx = dash.callback_context
 
     if not ctx.triggered:
-        return False, '', ''
+        return False, '', '', dash.no_update
 
     button_id = ctx.triggered[0]['prop_id'].split('.')[0]
     if button_id == ADD_CAR_OPEN:
@@ -448,19 +503,19 @@ def modal_add_car(open_button, insert_button, cancel_button, is_open, driver_nam
         else:
 
             add_header = 'No driver specified to add new cars for'
-        return True, add_header, ''
+        return True, add_header, '', dash.no_update
 
     elif button_id == ADD_CAR_CANCEL:
-        return False, dash.no_update, ''
+        return False, dash.no_update, '', dash.no_update
 
     elif button_id != ADD_CAR_INSERT:
         LOGGER.error("Unknown button ID received '%s'", button_id)
-        return False, dash.no_update, ''
+        return False, dash.no_update, '', dash.no_update
 
     driver_obj = dcd.DriverDb.query.filter_by(driver_name=driver_name).first()
     if driver_obj is None:
         LOGGER.error("Unknown button ID received '%s'", button_id)
-        return False, dash.no_update, ''
+        return False, dash.no_update, '', dash.no_update
 
     car_name_list = car_input.split("\n")
     for car_name in car_name_list:
@@ -474,7 +529,11 @@ def modal_add_car(open_button, insert_button, cancel_button, is_open, driver_nam
 
     dbd.DB_DATA['DB'].session.commit()
 
-    return False, dash.no_update, ''
+    if refresh_n_clicks is None:
+        refresh_n_clicks = 0
+
+    refresh_value = refresh_n_clicks + 1
+    return False, dash.no_update, '', refresh_value
 
 
 @wl.DASH_APP.callback(

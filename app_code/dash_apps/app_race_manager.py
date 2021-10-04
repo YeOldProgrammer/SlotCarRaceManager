@@ -364,7 +364,7 @@ def generate_graph(**kwargs):
         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
         if button_id == NEW_RACE_BUTTON:
             new_url_params_str = url_params_dict.\
-                get('url', 'http://127.0.0.1:8080/race_manager').replace('race_manager', 'race_entry')
+                get('url', f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/race_manager").replace('race_manager', 'race_entry')
             LOGGER.info("Race Manager Callback (%s) - New Race Button Clicked", refresh)
         elif button_id == URL_ID:
             LOGGER.info("Race Manager Callback (%s) - URL Clicked)", refresh)
@@ -424,7 +424,7 @@ def generate_graph(**kwargs):
             new_url_params_str = build_url_params_str(url_params_dict)
     else:
         LOGGER.info("    Race_id was not specified")
-        new_url_params_str = 'http://127.0.0.1:8080/race_entry'
+        new_url_params_str = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/race_entry"
 
     if orig_url_params_str != new_url_params_str:
         LOGGER.info("    URL Change\n        from: %s\n          to: %s", orig_url_params_str, new_url_params_str)
