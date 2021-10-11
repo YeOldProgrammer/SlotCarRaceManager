@@ -1,5 +1,7 @@
 import os
+import sys
 import socket
+import shutil
 from dotenv import load_dotenv
 
 APP_NAME = 'race_manager'
@@ -16,18 +18,18 @@ VALUE_BOTH_WINNER = 3
 
 
 def load_data():
-    data_dir = os.path.join(os.getcwd(), 'default_data')
+    default_data_dir = os.path.join(os.getcwd(), 'data')
+    data_dir = os.path.join(os.getcwd(), 'data')
     env_var_file = os.path.join(data_dir, APP_NAME + '.cfg')
     if os.path.exists(env_var_file) is False:
         if os.path.isdir(data_dir) is False:
             os.makedirs(data_dir)
-
-        with open(env_var_file, 'w') as CFG_FH:
-            CFG_FH.write("""BODY_DISPLAY_HEIGHT=500
-BODY_DISPLAY_COLOR=none
-MAX_RACE_COUNT=50
-""")
-        print(f"Generating configuration file '{env_var_file}'")
+        default_env_var_file = os.path.join(default_data_dir, APP_NAME + '.cfg')
+        if os.path.exists(default_env_var_file):
+            shutil.copy(default_env_var_file, env_var_file)
+        else:
+            print("Missing configuration files")
+            sys.exit(9)
 
     load_dotenv(env_var_file)
 
