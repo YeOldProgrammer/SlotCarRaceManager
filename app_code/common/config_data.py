@@ -39,6 +39,7 @@ MAX_RACE_COUNT=50
     ENV_VARS['BODY_DISPLAY_HEIGHT'] = os.environ.get('BODY_DISPLAY_HEIGHT')
     ENV_VARS['BODY_DISPLAY_COLOR'] = os.environ.get('BODY_DISPLAY_COLOR')
     ENV_VARS['MAX_RACE_COUNT'] = int(os.environ.get('MAX_RACE_COUNT'))
+    ENV_VARS['RACE_DURATION_SEC'] = int(os.environ.get('RACE_DURATION_SEC'))
     try:
         ENV_VARS['IP_ADDRESS'] = socket.gethostbyname(socket.gethostname())
     except Exception as error_text:

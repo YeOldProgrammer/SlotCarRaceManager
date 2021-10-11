@@ -19,8 +19,6 @@ for APP in APP_LIST:
                       [Input('url', 'pathname')])
 def display_page(pathname):
     if pathname == '/race_manager':
-        LOGGER.info("Loading Race Manager - %s", pathname)
         return APP_LAYOUTS[APP_RACE_MANAGER]
 
-    LOGGER.info("Loading Race Entry - %s", pathname)
     return APP_LAYOUTS[APP_RACE_ENTRY]

@@ -19,6 +19,9 @@ class RaceData:
         self.heat_id = 0
         self.run_count = 0
         self.orig_car_count = 0
+        self.total_race_count = 0
+        self.max_heat_id = 0
+        self.completed_race_count = 0
         self.run_data = []
         self.driver_balance = {}
         self.race_obj_list = []
@@ -507,6 +510,27 @@ class RaceData:
 
         dbd.DB_DATA['DB'].session.commit()
         self.run_data[run_id]['selected'] = run_obj.win_id
+
+    def refresh_stats(self):
+        heat = 0
+        car_count = self.orig_car_count
+        self.total_race_count = 0
+        self.max_heat_id = 0
+        self.completed_race_count = 0
+
+        while car_count > 1:
+            heat += 1
+            self.max_heat_id += 1
+            odd = car_count % 2
+            half = int(car_count/2)
+            self.total_race_count += half
+            car_count = half + odd
+            if heat < self.heat_id:
+                self.completed_race_count += half
+
+        for run_dict in self.run_data:
+            if run_dict['selected'] != 0 and run_dict['odd'] is False:
+                self.completed_race_count += 1
 
 
 def list_race():
