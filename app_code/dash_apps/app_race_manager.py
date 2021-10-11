@@ -183,7 +183,6 @@ def gen_initial_div_data():
     div_data_output = []
 
     inputs.append(Input(URL_ID, 'href'))
-    inputs.append(Input(TIMER_TRIGGER, 'n_intervals'))
     inputs.append(Input(DONE_BUTTON, 'n_clicks'))
     inputs.append(Input(NEXT_HEAT_BUTTON, 'n_clicks'))
     inputs.append(Input(RE_SHUFFLE_BUTTON, 'n_clicks'))
@@ -195,7 +194,6 @@ def gen_initial_div_data():
     outputs.append(Output(NEXT_HEAT_BUTTON, 'style'))
     outputs.append(Output(RE_SHUFFLE_BUTTON, 'style'))
     outputs.append(Output(REMAINING_PIE_CHART, 'figure'))
-    outputs.append(Output(REMAINING_TIME_CHART, 'figure'))
     outputs.append(Output(TIMER_TRIGGER, 'n_intervals'))
 
     for idx in range(cd.ENV_VARS['MAX_RACE_COUNT']):
@@ -353,6 +351,35 @@ ala.APP_LAYOUTS[ala.APP_RACE_MANAGER] = html.Div(
 
 
 @wl.DASH_APP.callback(
+    Output(REMAINING_TIME_CHART, 'figure'),
+    Input(TIMER_TRIGGER, 'n_intervals')
+)
+def generate_timer(interval):
+    time_remaining = interval
+    fig = go.Figure(data=[go.Pie(labels=['Elapsed', 'Remain'],
+                                 values=[time_remaining, cd.ENV_VARS['RACE_DURATION_SEC'] - time_remaining],
+                                 marker={'colors': ['red', 'blue']},
+                                 hole=0.5)])
+    fig.update_traces(textinfo='none')
+    display_time = cd.ENV_VARS['RACE_DURATION_SEC'] - time_remaining
+    if display_time < 0:
+        raise PreventUpdate
+
+    fig.update_layout(showlegend=False,
+                      margin={'t': 0, 'l': 0, 'r': 0, 'b': 0},
+                      paper_bgcolor='rgba(0,0,0,0)',
+                      plot_bgcolor='rgba(0,0,0,0)',
+                      title_text=display_time,
+                      title_x=0.5,
+                      title_y=0.5,
+                      font=dict(color='white'),
+                      )
+
+    LOGGER.info("Race Manager Callback: Timer (%s)", display_time)
+    return fig
+
+
+@wl.DASH_APP.callback(
     outputs,
     inputs,
 )
@@ -360,36 +387,6 @@ ala.APP_LAYOUTS[ala.APP_RACE_MANAGER] = html.Div(
 def generate_graph(**kwargs):
     cb_start_time = time.time()
     ctx = dash.callback_context
-    button_id = ''
-    if ctx.triggered:
-        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-
-        if button_id == TIMER_TRIGGER:
-            rv2 = []
-            for idx in range(len(outputs)):
-               rv2.append(dash.no_update)
-            time_remaining = kwargs[TIMER_TRIGGER]
-            fig = go.Figure(data=[go.Pie(labels=['Elapsed', 'Remain'],
-                                         values=[time_remaining, cd.ENV_VARS['RACE_DURATION_SEC'] - time_remaining],
-                                         marker={'colors': ['red', 'blue']},
-                                         hole=0.5)])
-            fig.update_traces(textinfo='none')
-            display_time = cd.ENV_VARS['RACE_DURATION_SEC'] - time_remaining
-            if display_time < 0:
-                raise PreventUpdate
-
-            fig.update_layout(showlegend=False,
-                              margin={'t': 0, 'l': 0, 'r': 0, 'b': 0},
-                              paper_bgcolor='rgba(0,0,0,0)',
-                              plot_bgcolor='rgba(0,0,0,0)',
-                              title_text=display_time,
-                              title_x=0.5,
-                              title_y=0.5,
-                              font=dict(color='white'),
-                              )
-            rv2[6] = fig
-            # LOGGER.info("Race Manager Callback: Timer (%s)", display_time)
-            return rv2
 
     orig_url_params_str = kwargs[URL_ID]
     url_params_dict = parse_url_params_str(orig_url_params_str)
@@ -397,7 +394,9 @@ def generate_graph(**kwargs):
     new_url_params_str = ''
     updated_timer_value = dash.no_update
 
+    button_id = ''
     if ctx.triggered:
+        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
         refresh = False
         if button_id == NEW_RACE_BUTTON:
             new_url_params_str = url_params_dict.\
@@ -499,8 +498,7 @@ def generate_graph(**kwargs):
         done_style = {'display': 'none'}
 
     timer_graph = dash.no_update
-    rv1 = [new_url_params_str, stats_data, done_style, next_heat_style, shuffle_style, graph, timer_graph,
-           updated_timer_value]
+    rv1 = [new_url_params_str, stats_data, done_style, next_heat_style, shuffle_style, graph, updated_timer_value]
 
     for run_id in range(int(cd.ENV_VARS['MAX_RACE_COUNT'])):
         if run_id >= race_data_obj.run_count:
