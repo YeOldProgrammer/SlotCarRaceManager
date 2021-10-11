@@ -60,6 +60,7 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
             width='auto',
             style={"border": "2px black solid", 'padding': '20px', 'margin-left': '50px'}
         ),
+        dbc.Col(html.Img(src=wl.DASH_APP.get_asset_url(cd.ENV_VARS['LOGO_FILE']), style={'margin-left': '20px'})),
     ]),
     dbc.Row([
         dbc.Col(

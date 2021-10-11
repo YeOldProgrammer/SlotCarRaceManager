@@ -337,10 +337,11 @@ ala.APP_LAYOUTS[ala.APP_RACE_MANAGER] = html.Div(
         ),
         html.Div(
             [
-                html.Button('Done', id=DONE_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
-                html.Button('Next Heat', id=NEXT_HEAT_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
-                html.Button('Re-Shuffle', id=RE_SHUFFLE_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
-                html.Button('New Race Button', id=NEW_RACE_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
+                dbc.Button('Done', id=DONE_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
+                dbc.Button('Next Heat', id=NEXT_HEAT_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
+                dbc.Button('Re-Shuffle', id=RE_SHUFFLE_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
+                dbc.Button('New Race Button', id=NEW_RACE_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
+                html.Img(src=wl.DASH_APP.get_asset_url(cd.ENV_VARS['LOGO_FILE']), style={'margin-left': '20px'}),
             ],
             style={'height': '100px'}
             # style={'height': '100px', 'backgroundColor': 'red'}
