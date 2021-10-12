@@ -28,6 +28,8 @@ ADD_DRIVER_INPUT = BASE_ID + 'add_driver_input'
 ADD_DRIVER_INSERT = BASE_ID + 'add_driver_button_insert'
 ADD_DRIVER_CANCEL = BASE_ID + 'add_driver_button_cancel'
 DRIVER_DELETE_BUTTON = BASE_ID + 'driver_delete'
+RACE_ENTRIES = BASE_ID + 'race_entries'
+RACE_DRIVERS = BASE_ID + 'race_drivers'
 
 ERROR_PROMPT_MODAL = BASE_ID + 'error_prompt_modal'
 ERROR_PROMPT_OPEN = BASE_ID + 'error_prompt_open'
@@ -65,7 +67,8 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
     dbc.Row([
         dbc.Col(
             [
-                html.H3("Entries"),
+                html.H3("Drivers: 0", id=RACE_DRIVERS),
+                html.H3("Entries: 0", id=RACE_ENTRIES),
                 dash_table.DataTable(
                     id=RACE_PARTICIPANTS_TABLE,
                     columns=[
@@ -158,7 +161,8 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
         ),],
         style={'margin-top': '20px'}
     ),
-    dbc.Button('Start New Race', id=START_RACE_BUTTON, style={'margin-left': '50px', 'margin-top': '10px'}),
+    dbc.Button('Start New Race', id=START_RACE_BUTTON,
+               style={'margin-left': '50px', 'margin-top': '10px'}),
 
     # Add New Driver
     dbc.Modal(
@@ -205,6 +209,8 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
         Output(RACE_PARTICIPANTS_TABLE, 'selected_rows'),
         Output(URL_ID, 'href'),
         Output(ADD_CAR_OPEN, 'style'),
+        Output(RACE_ENTRIES, 'children'),
+        Output(RACE_DRIVERS, 'children')
     ],
     [
         Input(DRIVER_DROPDOWN, 'value'),
@@ -238,6 +244,8 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
     updated_car_data_selected = dash.no_update
     new_url = dash.no_update
     new_driver = dash.no_update
+    display_entries = dash.no_update
+    display_drivers = dash.no_update
 
     if driver_dropdown != '':
         default_add_new_car_style = {'margin-left': '20px'}
@@ -263,7 +271,7 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
         # return driver_list, new_driver, car_list, updated_car_selected, dash.no_update, dash.no_update, new_url,\
         #        default_add_new_car_style
         return driver_list, car_list, updated_car_selected, dash.no_update, dash.no_update, new_url,\
-               default_add_new_car_style
+               default_add_new_car_style, display_entries, display_drivers
 
     car_queued = dash.no_update
     LOGGER.info("Race Entry Callback car_list=%s", car_list)
@@ -272,6 +280,7 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
     if button_id == CAR_ADD_SEL_BUTTON or button_id == CAR_ADD_ALL_BUTTON:
         car_queued = []
         car_names = []
+        driver_names = {}
 
         if button_id == CAR_ADD_SEL_BUTTON:
             for car_idx in car_available_selected:
@@ -303,6 +312,9 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
                                    'car_id': car_mapping[car_name],
                                    'driver_id': driver_mapping[driver_dropdown]
                                    })
+
+        for entry in car_queued:
+            driver_names[entry['driver_id']] = True
 
         queued_count = len(car_queued)
         if queued_count == 0:
@@ -347,7 +359,7 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
         for car_dict in car_data:
             car_obj = dcd.CarDb.query.filter_by(car_name=car_dict['car_name']).first()
             race_obj = dcd.RaceDb(
-                {'race_id': race_id, 'car_id': car_obj.id, 'in_race': True, 'buy_ins': 0,
+                {'race_id': race_id, 'car_id': car_obj.id, 'in_race': True, 'buy_back': False, 'odd_skips': 0,
                  'track_left_count': 0, 'track_right_count': 0})
             dbd.DB_DATA['DB'].session.add(race_obj)
             dbd.DB_DATA['DB'].session.commit()
@@ -369,8 +381,9 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
 
         if car_data is None or len(car_data) == 0:
             LOGGER.info("    Delete Driver - unable to start race - no cars selected")
+            display_entries, display_drivers = get_updated_drivers(car_queued)
             return driver_list, car_list, updated_car_selected, car_queued, updated_car_data_selected, new_url, \
-                   default_add_new_car_style
+                   default_add_new_car_style, display_entries, display_drivers
 
         car_in_list = []
         for car_dict in car_data:
@@ -432,11 +445,27 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
     if orig_url != new_url and new_url != dash.no_update:
         LOGGER.info("        Changing url\nfrom:%s\n  to:%s", orig_url, new_url)
 
+    display_entries, display_drivers = get_updated_drivers(car_queued)
     LOGGER.info("    Callback time:%0.02f", time.time() - cb_start_time)
     # return driver_list, new_driver, car_list, updated_car_selected, car_queued, updated_car_data_selected, new_url,\
     #        default_add_new_car_style
     return driver_list, car_list, updated_car_selected, car_queued, updated_car_data_selected, new_url,\
-           default_add_new_car_style
+           default_add_new_car_style, display_entries, display_drivers
+
+
+def get_updated_drivers(car_queued):
+    driver_names = {}
+    if car_queued == dash.no_update:
+        return dash.no_update, dash.no_update
+
+    queued_count = len(car_queued)
+    for entry in car_queued:
+        driver_names[entry['driver_id']] = True
+
+    driver_count = len(driver_names)
+    display_drivers = 'Drivers: %d' % driver_count
+    display_entries = 'Entries: %d' % queued_count
+    return display_entries, display_drivers
 
 
 @wl.DASH_APP.callback(

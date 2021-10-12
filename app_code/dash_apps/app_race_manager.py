@@ -28,6 +28,7 @@ BASE_ID = 'arm_'
 CLICK_LEFT = 'left_check'
 CLICK_RIGHT = 'right_check'
 HEAT_SLIDER = BASE_ID + 'slider'
+START_BUTTON = BASE_ID + 'start_heat'
 DONE_BUTTON = BASE_ID + 'done_heat'
 NEXT_HEAT_BUTTON = BASE_ID + 'next_heat'
 RE_SHUFFLE_BUTTON = BASE_ID + 'shuffle'
@@ -183,6 +184,7 @@ def gen_initial_div_data():
     div_data_output = []
 
     inputs.append(Input(URL_ID, 'href'))
+    inputs.append(Input(START_BUTTON, 'n_clicks'))
     inputs.append(Input(DONE_BUTTON, 'n_clicks'))
     inputs.append(Input(NEXT_HEAT_BUTTON, 'n_clicks'))
     inputs.append(Input(RE_SHUFFLE_BUTTON, 'n_clicks'))
@@ -190,11 +192,13 @@ def gen_initial_div_data():
     inputs.append(Input(STATS_ROW, 'children'))
     outputs.append(Output(URL_ID, 'href'))
     outputs.append(Output(STATS_ROW, 'children'))
+    outputs.append(Output(START_BUTTON, 'style'))
     outputs.append(Output(DONE_BUTTON, 'style'))
     outputs.append(Output(NEXT_HEAT_BUTTON, 'style'))
     outputs.append(Output(RE_SHUFFLE_BUTTON, 'style'))
     outputs.append(Output(REMAINING_PIE_CHART, 'figure'))
     outputs.append(Output(TIMER_TRIGGER, 'n_intervals'))
+    outputs.append(Output(TIMER_TRIGGER, 'interval'))
 
     for idx in range(cd.ENV_VARS['MAX_RACE_COUNT']):
         run_id = idx
@@ -269,7 +273,7 @@ def gen_stats_row(race_data_obj=None):
         labels = ['Completed', 'Remaining']
         values = [completed_race_count, total_race_count - completed_race_count]
         colors = ['lightgreen', 'lightgrey']
-        display_text = "%d%%" % (completed_race_count / total_race_count)
+        display_text = "%d%%" % ((completed_race_count / total_race_count) * 100)
 
     else:
         heat_id = 0
@@ -307,7 +311,7 @@ stats_data, graph = gen_stats_row()
 ala.APP_LAYOUTS[ala.APP_RACE_MANAGER] = html.Div(
     [
         dcc.Location(id=URL_ID),
-        dcc.Interval(id=TIMER_TRIGGER, n_intervals=0, interval=1*1000),
+        dcc.Interval(id=TIMER_TRIGGER, n_intervals=cd.ENV_VARS['RACE_DURATION_SEC'] + 5, interval=1*1000),
         html.Div(
             [
                 dbc.Row([
@@ -337,11 +341,20 @@ ala.APP_LAYOUTS[ala.APP_RACE_MANAGER] = html.Div(
         ),
         html.Div(
             [
-                dbc.Button('Done', id=DONE_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
-                dbc.Button('Next Heat', id=NEXT_HEAT_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
+                dbc.Button('Start', id=START_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
+                dbc.Button('Done', id=DONE_BUTTON, style={'display': 'none'}),
+                dbc.Button('Next Heat', id=NEXT_HEAT_BUTTON, style={'display': 'none'}),
                 dbc.Button('Re-Shuffle', id=RE_SHUFFLE_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
                 dbc.Button('New Race Button', id=NEW_RACE_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
                 html.Img(src=wl.DASH_APP.get_asset_url(cd.ENV_VARS['LOGO_FILE']), style={'margin-left': '20px'}),
+                html.Div([
+                    html.H4("Purse"),
+                    html.Hr(),
+                    html.Div("1st: X"),
+                    html.Div("2nd: X"),
+                    html.Div("3rd: X"),
+                    html.Div("4th: X"),
+                ])
             ],
             style={'height': '100px'}
             # style={'height': '100px', 'backgroundColor': 'red'}
@@ -376,7 +389,7 @@ def generate_timer(interval):
                       font=dict(color='white'),
                       )
 
-    LOGGER.info("Race Manager Callback: Timer (%s)", display_time)
+    # LOGGER.info("Race Manager Callback: Timer (%s)", display_time)
     return fig
 
 
@@ -396,6 +409,9 @@ def generate_graph(**kwargs):
     updated_timer_value = dash.no_update
 
     button_id = ''
+    timer_enabled = True
+    need_build = False
+
     if ctx.triggered:
         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
         refresh = False
@@ -411,9 +427,8 @@ def generate_graph(**kwargs):
             LOGGER.info("Race Manager Callback (%s) - Button Clicked (%s)", refresh, button_id)
     else:
         refresh = True
+        timer_enabled = False
         LOGGER.info("Race Manager Callback (%s) - Nothing clicked", refresh)
-
-    need_build = False
 
     abort_text = ''
     if 'race_id' in url_params_dict:
@@ -429,6 +444,8 @@ def generate_graph(**kwargs):
                 LOGGER.info("    No heat for race_id %s", url_params_dict['race_id'])
                 need_build = True
             elif button_id == RE_SHUFFLE_BUTTON:
+                updated_timer_value = 0
+                timer_enabled = False
                 refresh = True
                 url_params_dict['heat_id'] = heat_obj.heat_id
                 LOGGER.info("    Found race_id %s, heat_id %s", url_params_dict['race_id'], url_params_dict['heat_id'])
@@ -438,10 +455,12 @@ def generate_graph(**kwargs):
         else:
             if button_id == RE_SHUFFLE_BUTTON:
                 refresh = True
+                timer_enabled = False
                 LOGGER.info("    Race_id %s, heat_id %s specified - reshuffle", url_params_dict['race_id'], url_params_dict['heat_id'])
                 need_build = True
                 updated_timer_value = 0
             elif button_id == NEXT_HEAT_BUTTON:
+                timer_enabled = False
                 updated_timer_value = 0
                 LOGGER.info("    Race_id %s, heat_id %s specified - new heat", url_params_dict['race_id'], url_params_dict['heat_id'])
                 race_data_obj.load_cars(race_id=url_params_dict['race_id'], heat_id=url_params_dict['heat_id'])
@@ -451,8 +470,11 @@ def generate_graph(**kwargs):
                     need_build = True
                     refresh = True
             elif button_id == DONE_BUTTON:
+                timer_enabled = False
                 updated_timer_value = 0
-
+            elif button_id == START_BUTTON:
+                timer_enabled = True
+                updated_timer_value = 0
             else:
                 LOGGER.info("    Race_id %s, heat_id %s specified", url_params_dict['race_id'], url_params_dict['heat_id'])
 
@@ -482,8 +504,10 @@ def generate_graph(**kwargs):
         updated_timer_value = 0
 
     if none_raced is True:
+        start_style = {'margin-left': '20px', 'margin-top': '20px'}
         shuffle_style = {'margin-left': '20px', 'margin-top': '20px'}
     else:
+        start_style = {'display': 'none'}
         shuffle_style = {'display': 'none'}
 
     stats_data, graph = gen_stats_row(race_data_obj)
@@ -494,12 +518,21 @@ def generate_graph(**kwargs):
         else:
             next_heat_style = {'margin-left': '20px', 'margin-top': '20px'}
             done_style = {'display': 'none'}
+        timer_enabled = False
     else:
         next_heat_style = {'display': 'none'}
         done_style = {'display': 'none'}
 
     timer_graph = dash.no_update
-    rv1 = [new_url_params_str, stats_data, done_style, next_heat_style, shuffle_style, graph, updated_timer_value]
+    if timer_enabled is True:
+        timer_interval = 1000  # once a second
+    else:
+        timer_interval = 86400000  # once a day
+
+    LOGGER.info("        Interval time Enabled:%s (%d)", timer_enabled, timer_interval)
+
+    rv1 = [new_url_params_str, stats_data, start_style, done_style, next_heat_style, shuffle_style, graph,
+           updated_timer_value, timer_interval]
 
     for run_id in range(int(cd.ENV_VARS['MAX_RACE_COUNT'])):
         if run_id >= race_data_obj.run_count:

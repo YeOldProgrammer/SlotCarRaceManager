@@ -18,6 +18,7 @@ class RaceData:
         self.race_id = 0
         self.heat_id = 0
         self.run_count = 0
+        self.race_count = 0
         self.orig_car_count = 0
         self.total_race_count = 0
         self.max_heat_id = 0
@@ -76,7 +77,7 @@ class RaceData:
         max_retries = 20
         while True:
             if retry_count > max_retries:
-                LOGGER.info("        Max shuffles reached")
+                LOGGER.error("        Max shuffles reached")
                 break
 
             if self.shuffle_cars() is True:
@@ -110,7 +111,10 @@ class RaceData:
                     race_obj.in_race = False
 
                 elif run_obj.win_id == cd.VALUE_LEFT_WINNER and run_obj.car_id_left == race_obj.car_id:
-                    race_obj.track_left_count += 1
+                    if run_obj.odd is True:
+                        race_obj.odd_skips += 1
+                    else:
+                        race_obj.track_left_count += 1
 
                 elif run_obj.win_id == cd.VALUE_RIGHT_WINNER and run_obj.car_id_right == race_obj.car_id:
                     race_obj.track_right_count += 1
@@ -212,6 +216,52 @@ class RaceData:
             drivers, remaining_car_keys, remaining_car_keys_by_driver, racer_combos)
 
         run_id = 0
+
+        # If needed, select the odd car first
+        if odd_car_count is True:
+            # Find the least used driver
+            min_skip_val = 99
+            least_used_driver = ''
+            for driver_balance in self.driver_balance:
+                if self.driver_balance[driver_balance]['skips'] < min_skip_val:
+                    min_skip_val = self.driver_balance[driver_balance]['skips']
+                    least_used_driver = driver_balance
+
+            car1 = remaining_car_keys_by_driver[least_used_driver][0]
+            key1 = least_used_driver + ':' + car1
+            remaining_car_keys_by_driver[least_used_driver].remove(car1)
+            remaining_car_keys.remove(key1)
+            odd_run_id = race_count + 1
+
+            odd = True
+            LOGGER.info("            race_id=%2d, heat_id=%2d, run_id=%2d, odd=%-5s, "
+                        "car_id_left=%3d (%-15s) %2d/%2d, "
+                        "                                          "
+                        "win_id=%d",
+                        self.race_id,
+                        self.heat_id,
+                        odd_run_id,
+                        odd,
+                        self.car_name_to_car_id[car1]['car_id'],
+                        car1,
+                        self.driver_balance[least_used_driver]['left'],
+                        self.driver_balance[least_used_driver]['right'],
+                        cd.VALUE_LEFT_WINNER,
+                        )
+
+            self.driver_balance[least_used_driver]['left'] += 1
+
+            odd_heat_obj = dcd.HeatDb({'race_id': self.race_id,
+                                       'heat_id': self.heat_id,
+                                       'run_id': odd_run_id,
+                                       'car_id_left': self.car_name_to_car_id[car1]['car_id'],
+                                       'car_id_right': 0,
+                                       'win_id': cd.VALUE_LEFT_WINNER,
+                                       'odd': odd,
+                                       })
+
+            heat_to_add_list.append(odd_heat_obj)
+
         while len(remaining_car_keys) > 1:
             random.shuffle(racer_combos)
             for combo in racer_combos:
@@ -325,54 +375,21 @@ class RaceData:
                         break
 
                 except Exception as error_str:
-                    LOGGER.error("Exception occurred %s", error_str, exc_info=True)
+                    LOGGER.error("Re-shuffle: Exception occurred %s", error_str, exc_info=True)
                     return False
 
             # Remove racer combos that are no longer valid
             if self.remove_empty_racer_combos(racer_combos, remaining_car_keys_by_driver) is False:
+                LOGGER.info("            Re-Shuffle: Remove Empty Racer Combos")
                 return False
 
             if len(racer_combos) == 0:
                 break
 
-        if odd_car_count is True:
-            driver1 = remaining_car_keys[0].split(':')[0]
-            car1 = remaining_car_keys_by_driver[driver1][0]
-            key1 = driver1 + ':' + car1
-            remaining_car_keys_by_driver[driver1].remove(car1)
-            remaining_car_keys.remove(key1)
-            run_id += 1
-
-            odd = True
-            LOGGER.info("            race_id=%2d, heat_id=%2d, run_id=%2d, odd=%-5s, "
-                        "car_id_left=%3d (%-15s) %2d/%2d, "
-                        "                                          "
-                        "win_id=%d",
-                        self.race_id,
-                        self.heat_id,
-                        run_id,
-                        odd,
-                        self.car_name_to_car_id[car1]['car_id'],
-                        car1,
-                        self.driver_balance[driver1]['left'],
-                        self.driver_balance[driver1]['right'],
-                        cd.VALUE_LEFT_WINNER,
-                        )
-
-            self.driver_balance[driver1]['left'] += 1
-
-            heat_obj = dcd.HeatDb({'race_id': self.race_id,
-                                   'heat_id': self.heat_id,
-                                   'run_id': run_id,
-                                   'car_id_left': self.car_name_to_car_id[car1]['car_id'],
-                                   'car_id_right': 0,
-                                   'win_id': cd.VALUE_LEFT_WINNER,
-                                   'odd': odd,
-                                   })
-            heat_to_add_list.append(heat_obj)
-
         # If the pattern did not work, try again :)
-        if len(remaining_car_keys) > 1:
+        remaining_car_keys_count = len(remaining_car_keys)
+        if remaining_car_keys_count > 1:
+            LOGGER.info("            Re-Shuffle - Too many remaining keys:%d", remaining_car_keys_count)
             return False
 
         # Remove this Heat's default_data
@@ -391,11 +408,12 @@ class RaceData:
             driver_name = self.car_id_to_car_name[race_obj.car_id]['driver_name']
 
             if driver_name not in drivers:
-                self.driver_balance[driver_name] = {'left': 0, 'right': 0}
+                self.driver_balance[driver_name] = {'left': 0, 'right': 0, 'skips': race_obj.odd_skips}
                 drivers[driver_name] = 1
                 remaining_car_keys_by_driver[driver_name] = []
             else:
                 drivers[driver_name] += 1
+                self.driver_balance[driver_name]['skips'] += race_obj.odd_skips
 
             key = driver_name + ':' + car_name
             if key not in remaining_car_keys:
