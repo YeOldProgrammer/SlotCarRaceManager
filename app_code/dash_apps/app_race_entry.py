@@ -254,9 +254,13 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
 
     driver_id = 0
     driver_mapping = {}
+    sortable_driver_name = {}
     for driver_obj in driver_obj_list:
-        driver_list.append({'label': driver_obj.driver_name, 'value': driver_obj.driver_name})
-        driver_mapping[driver_obj.driver_name] = driver_obj.id
+        sortable_driver_name[driver_obj.driver_name] = driver_obj
+
+    for driver_name in sorted(sortable_driver_name):
+        driver_list.append({'label': driver_name, 'value': driver_name})
+        driver_mapping[driver_name] = sortable_driver_name[driver_name].id
 
     if driver_dropdown != '' and driver_dropdown in driver_mapping:
         driver_id = driver_mapping[driver_dropdown]
@@ -359,8 +363,17 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
         for car_dict in car_data:
             car_obj = dcd.CarDb.query.filter_by(car_name=car_dict['car_name']).first()
             race_obj = dcd.RaceDb(
-                {'race_id': race_id, 'car_id': car_obj.id, 'in_race': True, 'buy_back': False, 'odd_skips': 0,
-                 'track_left_count': 0, 'track_right_count': 0})
+                {
+                    'race_id': race_id,
+                    'car_id': car_obj.id,
+                    'in_race': True,
+                    'eliminated': 0,
+                    'buy_back': False,
+                    'odd_skips': 0,
+                    'track_left_count': 0,
+                    'track_right_count': 0
+                }
+            )
             dbd.DB_DATA['DB'].session.add(race_obj)
             dbd.DB_DATA['DB'].session.commit()
 
@@ -379,36 +392,47 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
         dbd.DB_DATA['DB'].session.commit()
         driver_list.remove({'label': driver_dropdown, 'value': driver_dropdown})
 
-        if car_data is None or len(car_data) == 0:
-            LOGGER.info("    Delete Driver - unable to start race - no cars selected")
-            display_entries, display_drivers = get_updated_drivers(car_queued)
-            return driver_list, car_list, updated_car_selected, car_queued, updated_car_data_selected, new_url, \
-                   default_add_new_car_style, display_entries, display_drivers
+        temp_car_queued = []
+        if car_data is not None:
+            for queued_dict in car_data:
+                if queued_dict['driver_name'] != driver_dropdown:
+                    temp_car_queued.append(queued_dict)
 
-        car_in_list = []
-        for car_dict in car_data:
-            if car_dict['driver_id'] == driver_id:
-                car_in_list.append(car_dict['car_name'])
-
-        LOGGER.info("        Car in list removed (%s)", car_in_list)
-
-        car_queued = []
-        for car_idx, car_data_dict in enumerate(car_data):
-            if car_idx in car_data_selected:
-                continue
-            car_queued.append(car_data_dict)
-        updated_car_data_selected = []
+        car_queued = temp_car_queued
         car_list = []
+        #
+        # if car_data is None or len(car_data) == 0:
+        #     LOGGER.info("    Delete Driver - unable to start race - no cars selected")
+        #     display_entries, display_drivers = get_updated_drivers(car_queued)
+        #     car_list = []
+        #     updated_car_data_selected = []
+        #     return driver_list, car_list, updated_car_selected, car_queued, updated_car_data_selected, new_url, \
+        #            default_add_new_car_style, display_entries, display_drivers
 
-        for car_name in car_in_list:
-            car_queued.remove({
-                'car_name': car_name,
-                'driver_name': driver_dropdown,
-                'car_id': car_mapping[car_name],
-                'driver_id': driver_id
-            })
-
-        new_driver = ''
+        # car_in_list = []
+        # for car_dict in car_data:
+        #     if car_dict['driver_id'] == driver_id:
+        #         car_in_list.append(car_dict['car_name'])
+        #
+        # LOGGER.info("        Car in list removed (%s)", car_in_list)
+        #
+        # car_queued = []
+        # for car_idx, car_data_dict in enumerate(car_data):
+        #     if car_idx in car_data_selected:
+        #         continue
+        #     car_queued.append(car_data_dict)
+        # updated_car_data_selected = []
+        # car_list = []
+        #
+        # for car_name in car_in_list:
+        #     car_queued.remove({
+        #         'car_name': car_name,
+        #         'driver_name': driver_dropdown,
+        #         'car_id': car_mapping[car_name],
+        #         'driver_id': driver_id
+        #     })
+        #
+        # new_driver = ''
 
     elif button_id == CAR_DELETE_BUTTON:
         if len(car_available_selected) == 0:
@@ -438,9 +462,6 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
             if car_idx in car_data_selected:
                 continue
             car_queued.append(car_data_dict)
-
-    elif button_id == ADD_CAR_REFRESH:
-        a = 1
 
     if orig_url != new_url and new_url != dash.no_update:
         LOGGER.info("        Changing url\nfrom:%s\n  to:%s", orig_url, new_url)

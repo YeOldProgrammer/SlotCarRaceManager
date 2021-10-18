@@ -23,6 +23,10 @@ class RaceData:
         self.total_race_count = 0
         self.max_heat_id = 0
         self.completed_race_count = 0
+        self.orig_driver_count = 0
+        self.current_drivers = 0
+        self.current_cars = 0
+        self.buy_backs = 0
         self.run_data = []
         self.driver_balance = {}
         self.race_obj_list = []
@@ -47,12 +51,18 @@ class RaceData:
             all()
         self.orig_car_count = len(orig_race_obj_list)
 
-        self.race_obj_list = dcd.RaceDb.query.\
-            filter_by(race_id=self.race_id).\
-            filter_by(in_race=True).\
-            all()
+        if self.heat_id != 2:
+            self.race_obj_list = dcd.RaceDb.query.\
+                filter_by(race_id=self.race_id).\
+                filter_by(in_race=True).\
+                all()
+        else:
+            self.race_obj_list = dcd.RaceDb.query.\
+                filter_by(race_id=self.race_id).\
+                filter_by(buy_back=True).\
+                all()
 
-        for race_obj in self.race_obj_list:
+        for race_obj in orig_race_obj_list:
             car_obj = dcd.CarDb.query.filter_by(id=race_obj.car_id).first()
             driver_obj = dcd.DriverDb.query.filter_by(id=car_obj.driver_id).first()
             self.car_name_to_car_id[car_obj.car_name] = {
@@ -70,8 +80,11 @@ class RaceData:
             self.driver_name_to_driver_id[driver_obj.driver_name] = driver_obj.id
             self.driver_id_to_driver_name[driver_obj.id] = driver_obj.driver_name
 
+        self.orig_driver_count = len(self.driver_id_to_driver_name)
+
     def build_race(self):
-        LOGGER.info("    build_race")
+        LOGGER.info("    build_race drivers=%d of %d, cars=%d of %d",
+                    self.current_drivers, self.orig_driver_count, self.current_cars, self.orig_car_count)
         retry_count = 0
         shuffle_count = 0
         max_retries = 20
@@ -91,8 +104,8 @@ class RaceData:
         # Check if race is in complete state
         race_obj_list = dcd.RaceDb.query. \
             filter_by(race_id=self.race_id). \
-            filter_by(in_race=True). \
             all()
+        # filter_by(in_race=True). \
 
         run_obj_list = dcd.HeatDb.query.\
             filter_by(race_id=self.race_id).\
@@ -100,7 +113,7 @@ class RaceData:
             order_by(dcd.HeatDb.run_id).\
             all()
 
-        # Make each run has a winner
+        # Make sure .each run has a winner
         for run_obj in run_obj_list:
             if run_obj.win_id == cd.VALUE_NO_WINNER:
                 return "Not all runs have a winner declared"
@@ -109,15 +122,20 @@ class RaceData:
                 if (run_obj.win_id == cd.VALUE_LEFT_WINNER and run_obj.car_id_right == race_obj.car_id) or \
                         (run_obj.win_id == cd.VALUE_RIGHT_WINNER and run_obj.car_id_left == race_obj.car_id):
                     race_obj.in_race = False
+                    race_obj.eliminated = self.heat_id
 
                 elif run_obj.win_id == cd.VALUE_LEFT_WINNER and run_obj.car_id_left == race_obj.car_id:
                     if run_obj.odd is True:
                         race_obj.odd_skips += 1
                     else:
                         race_obj.track_left_count += 1
+                    race_obj.in_race = True
+                    race_obj.eliminated = 0
 
                 elif run_obj.win_id == cd.VALUE_RIGHT_WINNER and run_obj.car_id_right == race_obj.car_id:
                     race_obj.track_right_count += 1
+                    race_obj.in_race = True
+                    race_obj.eliminated = 0
 
         dbd.DB_DATA['DB'].session.commit()
         return ''
@@ -234,7 +252,7 @@ class RaceData:
             odd_run_id = race_count + 1
 
             odd = True
-            LOGGER.info("            race_id=%2d, heat_id=%2d, run_id=%2d, odd=%-5s, "
+            LOGGER.info("            race_id=%4d, heat_id=%2d, run_id=%2d, odd=%-5s, "
                         "car_id_left=%3d (%-15s) %2d/%2d, "
                         "                                          "
                         "win_id=%d",
@@ -261,6 +279,11 @@ class RaceData:
                                        })
 
             heat_to_add_list.append(odd_heat_obj)
+
+        # Remove racer combos that are no longer valid
+        if self.remove_empty_racer_combos(racer_combos, remaining_car_keys_by_driver) is False:
+            LOGGER.info("            Re-Shuffle: Remove Empty Racer Combos")
+            return False
 
         while len(remaining_car_keys) > 1:
             random.shuffle(racer_combos)
@@ -299,7 +322,7 @@ class RaceData:
                             self.driver_balance[driver1]['right'] - self.driver_balance[driver2]['right'],
                         ]
 
-                        LOGGER.info("            race_id=%2d, heat_id=%2d, run_id=%2d, odd=%-5s, "
+                        LOGGER.info("            race_id=%4d, heat_id=%2d, run_id=%2d, odd=%-5s, "
                                     "car_id_left=%3d (%-15s) %2d/%2d, "
                                     "car_id_right=%3d (%-15s) %2d/%2d, "
                                     "win_id=%d (rand=%d, bal=%d/%d)",
@@ -338,7 +361,7 @@ class RaceData:
                             driver_tmp = driver1
                             driver1 = driver2
                             driver2 = driver_tmp
-                            LOGGER.info("                    R%s  heat_id=%2d, run_id=%2d, odd=%-5s, "
+                            LOGGER.info("                      R%s  heat_id=%2d, run_id=%2d, odd=%-5s, "
                                         "car_id_left=%3d (%-15s) %2d/%2d, "
                                         "car_id_right=%3d (%-15s) %2d/%2d, "
                                         "win_id=%d",
@@ -535,20 +558,59 @@ class RaceData:
         self.total_race_count = 0
         self.max_heat_id = 0
         self.completed_race_count = 0
+        self.current_drivers = 0
+        self.current_cars = 0
+        self.buy_backs = 0
+        current_drivers = {}
+
+        race_obj_list = dcd.RaceDb.query.\
+            filter_by(race_id=self.race_id).\
+            all()
+
+        for race_obj in race_obj_list:
+            if race_obj.in_race is True:
+                self.current_cars += 1
+                current_drivers[self.car_id_to_car_name[race_obj.car_id]['driver_name']] = True
+
+            if race_obj.buy_back is True:
+                self.buy_backs += 1
 
         while car_count > 1:
             heat += 1
+
+            if heat > 100:
+                raise ValueError("Too many heats (%d) encountered" % heat)
+
             self.max_heat_id += 1
-            odd = car_count % 2
             half = int(car_count/2)
+            half += car_count % 2
             self.total_race_count += half
-            car_count = half + odd
+            car_count = half
+
+            # Add in buybacks
+            if heat == 1:
+                if self.heat_id == 1:
+                    quarter = int(half / 2)
+                    quarter += half % 2
+                    car_count += quarter
+                    self.total_race_count += quarter
+                else:
+                    car_count += self.buy_backs
+                    self.total_race_count += self.buy_backs
+                    self.completed_race_count += self.buy_backs
+
             if heat < self.heat_id:
                 self.completed_race_count += half
+
+        # Add one for buy back
+        heat += 1
+        self.max_heat_id += 1
 
         for run_dict in self.run_data:
             if run_dict['selected'] != 0 and run_dict['odd'] is False:
                 self.completed_race_count += 1
+
+        self.current_drivers = len(current_drivers)
 
 
 def list_race():

@@ -15,6 +15,7 @@ VALUE_NO_WINNER = 0
 VALUE_LEFT_WINNER = 1
 VALUE_RIGHT_WINNER = 2
 VALUE_BOTH_WINNER = 3
+HEAT_LINE = "New Heat\n\n\n-------------------------------- Race %d Start Heat %d --------------------------------\n\n"
 
 
 def load_data():
@@ -42,6 +43,8 @@ def load_data():
     ENV_VARS['BODY_DISPLAY_COLOR'] = os.environ.get('BODY_DISPLAY_COLOR')
     ENV_VARS['MAX_RACE_COUNT'] = int(os.environ.get('MAX_RACE_COUNT'))
     ENV_VARS['RACE_DURATION_SEC'] = int(os.environ.get('RACE_DURATION_SEC'))
+    ENV_VARS['RACE_PRICE'] = int(os.environ.get('RACE_PRICE', 0))
+    ENV_VARS['BUY_IN_COST'] = int(os.environ.get('BUY_IN_COST', 0))
     ENV_VARS['LOGO_FILE'] = os.environ.get('LOGO_FILE')
     try:
         ENV_VARS['IP_ADDRESS'] = socket.gethostbyname(socket.gethostname())

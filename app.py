@@ -12,6 +12,7 @@ import app_code.dash_apps.app_layouts as ala
 import app_code.dash_apps.app_race_entry as are
 import app_code.dash_apps.app_race_manager as arm
 import app_code.dash_apps.app_buy_back as abb
+import app_code.dash_apps.app_race_results as arr
 import app_code.common.race_logic as rl
 import webbrowser
 

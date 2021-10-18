@@ -1,5 +1,6 @@
 import json
 import dash
+import dash_daq
 import time
 import logging
 import dash_core_components as dcc
@@ -266,6 +267,8 @@ def gen_stats_row(race_data_obj=None):
         orig_car_count = len(race_data_obj.car_name_to_car_id)
         total_race_count = race_data_obj.total_race_count
         completed_race_count = race_data_obj.completed_race_count
+        current_car_count = race_data_obj.current_cars
+        current_driver_count = race_data_obj.current_drivers
         car_count = race_data_obj.orig_car_count
         heat = race_data_obj.heat_id
         max_heat = race_data_obj.max_heat_id
@@ -279,10 +282,18 @@ def gen_stats_row(race_data_obj=None):
         heat_id = 0
         driver_count = 0
         orig_car_count = 0
+        current_car_count = 0
+        current_driver_count = 0
         labels = ['Remaining']
         values = [0]
         colors = ['lightgrey']
         display_text = ''
+
+    # fig = go.Figure(go.Indicator(
+    #     mode="gauge+number",
+    #     value=270,
+    #     domain={'x': [0, 1], 'y': [0, 1]},
+    #     title={'text': "Speed"}))
 
     fig = go.Figure(data=[go.Pie(labels=labels, values=values, hole=0.5,
                                  marker_colors=colors)])
@@ -297,11 +308,22 @@ def gen_stats_row(race_data_obj=None):
                       font = dict(color='white'),
                       )
 
-    row_data = [
-        dbc.Col(html.H3("Heat: %d of %d" % (heat_id, max_heat)), style={'display': 'block'}, width='auto'),
-        dbc.Col(html.H3("Drivers: %d" % driver_count), style={'display': 'block'}, width='auto'),
-        dbc.Col(html.H3("Cars: %d" % orig_car_count, style={'display': 'block'}), width='auto'),
-    ]
+    if heat_id == 2:
+        row_data = [
+            dbc.Col(html.H3("Buy back heat: %d of %d" % (heat_id, max_heat),
+                            style={'display': 'block'}), width='auto'),
+            dbc.Col(html.H3("", style={'display': 'block'}), width='auto'),
+            dbc.Col(html.H3("", style={'display': 'block'}), width='auto'),
+        ]
+    else:
+        row_data = [
+            dbc.Col(html.H3("Heat: %d of %d" % (heat_id, max_heat),
+                            style={'display': 'block'}), width='auto'),
+            dbc.Col(html.H3("Drivers: %d of %d" % (current_driver_count, driver_count),
+                            style={'display': 'block'}), width='auto'),
+            dbc.Col(html.H3("Cars: %d of %d" % (current_car_count, orig_car_count),
+                            style={'display': 'block'}), width='auto'),
+        ]
 
     return row_data, fig
 
@@ -370,14 +392,30 @@ ala.APP_LAYOUTS[ala.APP_RACE_MANAGER] = html.Div(
 )
 def generate_timer(interval):
     time_remaining = interval
+
+    third_first = int(cd.ENV_VARS['RACE_DURATION_SEC'] * 0.33)
+    third_second = int(cd.ENV_VARS['RACE_DURATION_SEC'] * 0.33)
+    display_time = cd.ENV_VARS['RACE_DURATION_SEC'] - time_remaining
+    if display_time < 0:
+        raise PreventUpdate
+
+    # fig = dash_daq.Gauge(
+    #     color={"gradient": True, "ranges": {
+    #         "red": [0, third_first],
+    #         "yellow": [third_first + 1, third_second],
+    #         "green": [third_second + 1, cd.ENV_VARS['RACE_DURATION_SEC']]
+    #     }},
+    #     value=display_time,
+    #     label='Default',
+    #     max=cd.ENV_VARS['RACE_DURATION_SEC'],
+    #     min=0,
+    # )
+
     fig = go.Figure(data=[go.Pie(labels=['Elapsed', 'Remain'],
                                  values=[time_remaining, cd.ENV_VARS['RACE_DURATION_SEC'] - time_remaining],
                                  marker={'colors': ['red', 'blue']},
                                  hole=0.5)])
     fig.update_traces(textinfo='none')
-    display_time = cd.ENV_VARS['RACE_DURATION_SEC'] - time_remaining
-    if display_time < 0:
-        raise PreventUpdate
 
     fig.update_layout(showlegend=False,
                       margin={'t': 0, 'l': 0, 'r': 0, 'b': 0},
@@ -428,9 +466,15 @@ def generate_graph(**kwargs):
     else:
         refresh = True
         timer_enabled = False
-        LOGGER.info("Race Manager Callback (%s) - Nothing clicked", refresh)
+        if 'buy_back' in url_params_dict:
+            del url_params_dict['buy_back']
+            need_build = True
+            LOGGER.info("Race Manager Callback (%s) - post buyback", refresh)
+        else:
+            LOGGER.info("Race Manager Callback (%s) - Nothing clicked", refresh)
 
     abort_text = ''
+    new_heat = False
     if 'race_id' in url_params_dict:
         if 'heat_id' not in url_params_dict:
             heat_obj = dcd.HeatDb.\
@@ -462,16 +506,33 @@ def generate_graph(**kwargs):
             elif button_id == NEXT_HEAT_BUTTON:
                 timer_enabled = False
                 updated_timer_value = 0
-                LOGGER.info("    Race_id %s, heat_id %s specified - new heat", url_params_dict['race_id'], url_params_dict['heat_id'])
                 race_data_obj.load_cars(race_id=url_params_dict['race_id'], heat_id=url_params_dict['heat_id'])
                 abort_text = race_data_obj.next_heat()
-                if abort_text == '':
-                    url_params_dict['heat_id'] = race_data_obj.heat_id + 1
-                    need_build = True
-                    refresh = True
+
+                new_heat = True
+                if race_data_obj.heat_id == 1:
+                    LOGGER.info("    Race_id %s, buy_back specified", url_params_dict['race_id'])
+                    new_url_params_str = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/buy_back?race_id=%s" % \
+                                         url_params_dict['race_id']
+
+                else:
+                    LOGGER.info("    Race_id %s, heat_id %s specified - new heat", url_params_dict['race_id'],
+                                url_params_dict['heat_id'])
+
+                    if abort_text == '':
+                        url_params_dict['heat_id'] = race_data_obj.heat_id + 1
+                        need_build = True
+                        refresh = True
+
             elif button_id == DONE_BUTTON:
                 timer_enabled = False
                 updated_timer_value = 0
+                race_data_obj.load_cars(race_id=url_params_dict['race_id'], heat_id=url_params_dict['heat_id'])
+                abort_text = race_data_obj.next_heat()
+                if abort_text == '':
+                    new_url_params_str = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/race_results?race_id=%s" % \
+                                         url_params_dict['race_id']
+
             elif button_id == START_BUTTON:
                 timer_enabled = True
                 updated_timer_value = 0
@@ -481,8 +542,10 @@ def generate_graph(**kwargs):
         race_data_obj.load_cars(race_id=url_params_dict['race_id'], heat_id=url_params_dict['heat_id'])
 
         if need_build is True:
+            LOGGER.debug("    Build Race")
             race_data_obj.build_race()
         else:
+            LOGGER.debug("    Load Race")
             race_data_obj.load_run()
 
         if new_url_params_str == '':
@@ -494,11 +557,12 @@ def generate_graph(**kwargs):
     if orig_url_params_str != new_url_params_str:
         LOGGER.info("    URL Change\n        from: %s\n          to: %s", orig_url_params_str, new_url_params_str)
 
-    latest_run_id, none_raced, all_raced, clicked_current = calculate_race_pos(
+    stats_data, graph = gen_stats_row(race_data_obj)
+    latest_run_id, none_raced, all_raced, last_race, clicked_current = calculate_race_pos(
         race_data_obj=race_data_obj, kwargs=kwargs, button_id=button_id)
 
-    LOGGER.info("        Refresh:%s latest_run_id=%d none=%s all=%s clicked_current=%s",
-                refresh, latest_run_id, none_raced, all_raced, clicked_current)
+    LOGGER.info("        Refresh:%s latest_run_id=%d none=%s all=%s last=%s clicked_current=%s",
+                refresh, latest_run_id, none_raced, all_raced, last_race, clicked_current)
 
     if clicked_current is True:
         updated_timer_value = 0
@@ -510,9 +574,8 @@ def generate_graph(**kwargs):
         start_style = {'display': 'none'}
         shuffle_style = {'display': 'none'}
 
-    stats_data, graph = gen_stats_row(race_data_obj)
     if all_raced is True:
-        if race_data_obj.heat_id == race_data_obj.max_heat_id:
+        if last_race is True:
             done_style = {'margin-left': '20px', 'margin-top': '20px'}
             next_heat_style = {'display': 'none'}
         else:
@@ -543,7 +606,7 @@ def generate_graph(**kwargs):
                                                            display_text='',
                                                            row_visible=False
                                                            )
-                LOGGER.info("        Update Row %3d (%-7s) - %s", run_id, 'Refresh', display_data)
+                # LOGGER.info("        Update Row %3d (%-7s) - %s", run_id, 'Refresh', display_data)
                 rv1.append(div_data)
             else:
                 rv1.append(dash.no_update)
@@ -633,7 +696,8 @@ def generate_graph(**kwargs):
                                                    right_font_color=right_font_color,
                                                    right_check=right_click,
                                                    display_text=display_text,
-                                                   check_visible=check_visible,
+                                                   # check_visible=check_visible,
+                                                   check_visible=True,
                                                    current_race=current_race,
                                                    row_visible=True)
 
@@ -645,6 +709,10 @@ def generate_graph(**kwargs):
 
     output_return = rv1
     LOGGER.info("    Callback time:%0.02f", time.time() - cb_start_time)
+
+    if new_heat is True:
+        LOGGER.info(cd.HEAT_LINE % (int(url_params_dict['race_id']), race_data_obj.heat_id + 1))
+
     return output_return
 
 
@@ -652,6 +720,7 @@ def calculate_race_pos(race_data_obj, kwargs, button_id):
     latest_run_id = -1
     none_raced = True
     all_raced = False
+    last_race = False
     clicked_current = False
     clicked_run_id = -1
 
@@ -664,12 +733,6 @@ def calculate_race_pos(race_data_obj, kwargs, button_id):
         if run_id < 0:
             continue
 
-        if CLICK_LEFT in kwargs[kwarg] or CLICK_RIGHT in kwargs[kwarg] and \
-                run_id < len(race_data_obj.run_data) and race_data_obj.run_data[run_id]['odd'] is False:
-            race_results.append(True)
-        else:
-            race_results.append(False)
-
         if button_id == kwarg:
             clicked_run_id = run_id
             if CLICK_LEFT in kwargs[kwarg] and CLICK_RIGHT in kwargs[kwarg]:
@@ -680,6 +743,14 @@ def calculate_race_pos(race_data_obj, kwargs, button_id):
                 race_data_obj.set_race_info(run_id, cd.VALUE_RIGHT_WINNER)
             else:
                 race_data_obj.set_race_info(run_id, cd.VALUE_NO_WINNER)
+
+        if run_id < len(race_data_obj.run_data) and \
+                ((race_data_obj.run_data[run_id]['odd'] is True) or
+                (race_data_obj.run_data[run_id]['odd'] is False and
+                 race_data_obj.run_data[run_id]['selected'] != cd.VALUE_NO_WINNER)):
+            race_results.append(True)
+        else:
+            race_results.append(False)
 
     first_found = False
     done_count = 0
@@ -696,7 +767,10 @@ def calculate_race_pos(race_data_obj, kwargs, button_id):
     if done_count >= race_data_obj.run_count:
         all_raced = True
 
+    if all_raced is True and race_data_obj.heat_id > 2 and len(race_data_obj.race_obj_list) == 2:
+        last_race = True
+
     if clicked_run_id == latest_run_id:
         clicked_current = True
 
-    return latest_run_id, none_raced, all_raced, clicked_current
+    return latest_run_id, none_raced, all_raced, last_race, clicked_current

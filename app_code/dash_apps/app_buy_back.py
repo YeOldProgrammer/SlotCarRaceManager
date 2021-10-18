@@ -59,127 +59,6 @@ def get_run_id(check_id):
     return run_id
 
 
-def generate_row_data(run_id=None,
-                      left_car='',
-                      left_driver='',
-                      left_check=False,
-                      right_car='',
-                      right_driver='',
-                      right_check=False,
-                      row_visible=True,
-                      check_visible=True,
-                      current_race=False,
-                      left_row_color='transparent',
-                      left_font_color='lightgrey',
-                      right_row_color='transparent',
-                      right_font_color='lightgrey',
-                      display_text=''):
-
-    if row_visible is False:
-        master_display_value_il = 'none'
-        master_display_value_bl = 'none'
-        check_display_value = 'none'
-        display_data = 'Row not visible'
-    elif check_visible is False:
-        master_display_value_il = 'inline-block'
-        master_display_value_bl = 'block'
-        check_display_value = 'none'
-        display_data = 'Check not visible'
-    else:
-        master_display_value_il = 'inline-block'
-        master_display_value_bl = 'block'
-        check_display_value = 'block'
-        display_data = ''
-
-    if current_race is False:
-        border_style = "2px black solid"
-    else:
-        border_style = "5px red solid"
-
-    value_array = []
-    if left_check is True and right_check is True:
-        value_array.append(CLICK_LEFT)
-        value_array.append(CLICK_RIGHT)
-        if check_display_value == 'block':
-            display_data += ', both are winner'
-    elif left_check is True:
-        value_array.append(CLICK_LEFT)
-        if check_display_value == 'block':
-            display_data += ', left is winner'
-    elif right_check is True:
-        value_array.append(CLICK_RIGHT)
-        if check_display_value == 'block':
-            display_data += ', right is winner'
-    else:
-        if check_display_value == 'block':
-            display_data += ', no winner selected'
-
-    if run_id is not None:
-        check_id = gen_check_id(run_id)
-        display_run_id = run_id + 1
-        display_col = dbc.Col(html.H3(f'{display_run_id}'),
-                              style={'width': '50px', 'display': master_display_value_il}, width='auto')
-        check_list = dcc.Checklist(
-            options=[
-                {'label': '.    .', 'value': CLICK_LEFT},
-                {'label': '', 'value': CLICK_RIGHT}
-            ],
-            value=value_array,
-            id=check_id,
-            style={'display': check_display_value}
-        )
-    else:
-        display_col = dbc.Col(html.H3('', style={'width': '50px', 'display': 'none'}), width='auto')
-        check_list = html.Div()
-
-    data = [
-        display_col,
-        dbc.Col(
-            [
-                html.H4(left_driver, style={'display': 'inline-block', 'width': '200px'}),
-                html.H5(left_car),
-            ],
-            width='auto',
-            style={"border": border_style,
-                   'display': master_display_value_il,
-                   'backgroundColor': left_row_color,
-                   'color': left_font_color,
-                   'padding': '20px'}
-        ),
-        dbc.Col(
-            [
-                html.H3(style={'width': '40px'}),
-                check_list,
-            ],
-            width='auto',
-            style={'display': master_display_value_bl}
-        ),
-        dbc.Col(
-            [
-                html.H4(right_driver, style={'display': 'inline-block', 'width': '200px'}),
-                html.H5(right_car),
-            ],
-            width='auto',
-            style={"border": border_style,
-                   'display': master_display_value_il,
-                   'backgroundColor': right_row_color,
-                   'color': right_font_color,
-                   'padding': '20px'}
-        ),
-        dbc.Col(
-            [
-                html.H4(html.Div(display_text),
-                        style={'display': 'inline-block', 'width': '200px'},
-                        ),
-            ],
-            width='auto',
-            style={'backgroundColor': 'transparent', 'padding': '20px', 'display': master_display_value_il}
-        ),
-    ]
-
-    return data, display_data
-
-
 def gen_initial_div_data():
     div_data_output = []
 
@@ -187,27 +66,38 @@ def gen_initial_div_data():
     inputs.append(Input(DONE_BUTTON, 'n_clicks'))
     outputs.append(Output(URL_ID, 'href'))
 
-    # for idx in range(cd.ENV_VARS['MAX_RACE_COUNT']):
-    #     run_id = idx
-    #     key = gen_key(run_id)
-    #     check_id = gen_check_id(run_id)
-    #     run_row_id = BASE_ID + key + '_race_row'
-    #
-    #     inputs.append(Input(check_id, 'value'))
-    #     outputs.append(Output(run_row_id, 'children'))
-    #
-    #     div_data, display_data = generate_row_data(run_id=run_id,
-    #                                                display_text='',
-    #                                                check_visible=False,
-    #                                                row_visible=False)
-    #
-    #     div_data_output.append(
-    #         dbc.Row(
-    #             children=div_data,
-    #             id=run_row_id,
-    #             style={'margin-top': '10px'}
-    #         )
-    #     )
+    for idx in range(int(cd.ENV_VARS['MAX_RACE_COUNT'] / 2)):
+        run_id = idx
+        key = gen_key(run_id)
+        check_id = gen_check_id(run_id)
+        run_row_id = BASE_ID + key + '_race_row'
+        driver_id = BASE_ID + key + '_driver_id'
+        inputs.append(Input(check_id, 'value'))
+        outputs.append(Output(run_row_id, 'style'))
+        outputs.append(Output(check_id, 'options'))
+        outputs.append(Output(driver_id, 'children'))
+
+        div_data_output.append(
+            dbc.Row(
+                dbc.Col(
+                    [
+                        html.H4('', id=driver_id),
+                        dcc.Checklist(id=check_id,
+                                      labelStyle={'display': 'block', 'margin-left': '20px'},
+                                      inputStyle={"margin-right": "10px"}
+                                      )
+                    ],
+                    width='auto',
+                    style={"border": "2px black solid",
+                           'padding': '20px',
+                           'margin-left': '20px',
+                           'margin-top': '10px'
+                           },
+                ),
+                id=run_row_id,
+
+            )
+        )
 
     return div_data_output
 
@@ -297,78 +187,93 @@ def generate_graph(**kwargs):
     button_id = ''
     abort_text = ''
     if 'race_id' not in url_params_dict:
-        LOGGER.info("    Race_id was not specified")
+        LOGGER.info("Buy Back - Race_id was not specified")
         new_url_params_str = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/race_entry"
-    else:
-        new_url_params_str = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/buy_back?race_id=%d&heat_id=%d" % \
-                             (int(url_params_dict['race_id']), 1)
-        race_data_obj.load_cars(race_id=url_params_dict['race_id'], heat_id=1)
-        if ctx.triggered:
-            button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-            if button_id == DONE_BUTTON:
-                LOGGER.info("    Race_id %s specified", url_params_dict['race_id'])
+        raise PreventUpdate
+
+    race_id = int(url_params_dict['race_id'])
+    new_url_params_str = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/buy_back?race_id=%d" % race_id
+    race_data_obj.load_cars(race_id=url_params_dict['race_id'], heat_id=1)
 
     if orig_url_params_str != new_url_params_str:
         LOGGER.info("    URL Change\n        from: %s\n          to: %s", orig_url_params_str, new_url_params_str)
 
+    race_data_obj = rl.RaceData()
+    race_data_obj.load_cars(race_id=race_id, heat_id=1)
+
+    race_obj_list = dcd.RaceDb.query. \
+        filter_by(race_id=race_id). \
+        filter_by(in_race=False). \
+        all()
+
     rv1 = [new_url_params_str]
+    driver_data = {}
+    for race_obj in race_obj_list:
+        driver = race_data_obj.car_id_to_car_name[race_obj.car_id]['driver_name']
+        car_name = race_data_obj.car_id_to_car_name[race_obj.car_id]['car_name']
+        if driver not in driver_data:
+            driver_data[driver] = []
+        driver_data[driver].append({'label': car_name, 'value': car_name})
 
+    idx = 0
+    for driver_name in driver_data:
+        idx += 1
+        rv1.append({'display': 'block'})
+        rv1.append(driver_data[driver_name])
+        rv1.append(driver_name)
 
+    for idx in range(idx, int(cd.ENV_VARS['MAX_RACE_COUNT'] / 2)):
+        rv1.append({'display': 'none'})
+        rv1.append(dash.no_update)
+        rv1.append(dash.no_update)
 
+    car_ids = []
+    for data_key in kwargs:
+        if 'check_value' in data_key and kwargs[data_key] is not None:
+            for car_name in kwargs[data_key]:
+                car_ids.append(race_data_obj.car_name_to_car_id[car_name]['car_id'])
 
-    LOGGER.info("    Callback time:%0.02f", time.time() - cb_start_time)
-    return rv1
+    if ctx.triggered:
+        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+        if button_id == DONE_BUTTON:
+            buy_back_count = 0
+            for race_obj in race_obj_list:
+                if race_obj.car_id not in car_ids:
+                    # dcd.RaceDb.query.filter_by(car_id=race_obj.car_id).update({'in_race': False})
+                    continue
 
+                dcd.RaceDb.query.filter_by(car_id=race_obj.car_id).update(
+                    {
+                        'buy_back': True,
+                        'in_race': True,
+                        'eliminated': 0,
+                    }
+                )
+                buy_back_count += 1
 
-def calculate_race_pos(race_data_obj, kwargs, button_id):
-    latest_run_id = -1
-    none_raced = True
-    all_raced = False
-    clicked_current = False
-    clicked_run_id = -1
+            if buy_back_count > 0:
+                dbd.DB_DATA['DB'].session.commit()
 
-    # Look for clicked button
-    race_results = []
-    run_id = 0
-    for kwarg in kwargs:
-        run_id = get_run_id(kwarg)
-
-        if run_id < 0:
-            continue
-
-        if CLICK_LEFT in kwargs[kwarg] or CLICK_RIGHT in kwargs[kwarg] and \
-                run_id < len(race_data_obj.run_data) and race_data_obj.run_data[run_id]['odd'] is False:
-            race_results.append(True)
-        else:
-            race_results.append(False)
-
-        if button_id == kwarg:
-            clicked_run_id = run_id
-            if CLICK_LEFT in kwargs[kwarg] and CLICK_RIGHT in kwargs[kwarg]:
-                race_data_obj.set_race_info(run_id, cd.VALUE_BOTH_WINNER)
-            elif CLICK_LEFT in kwargs[kwarg]:
-                race_data_obj.set_race_info(run_id, cd.VALUE_LEFT_WINNER)
-            elif CLICK_RIGHT in kwargs[kwarg]:
-                race_data_obj.set_race_info(run_id, cd.VALUE_RIGHT_WINNER)
+            if buy_back_count > 1:
+                LOGGER.info("Buy Back Round Needed - Race_id %d - count=%d %s",
+                            int(url_params_dict['race_id']), buy_back_count, car_ids)
+                rv1[0] = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/race_manager?race_id=%d&heat_id=2&buy_back=1" % \
+                         race_id
+                LOGGER.info("    Callback time:%0.02f", time.time() - cb_start_time)
             else:
-                race_data_obj.set_race_info(run_id, cd.VALUE_NO_WINNER)
+                LOGGER.info("Buy Back Round Skipped - Race_id %d - count=%d %s",
+                            int(url_params_dict['race_id']), buy_back_count, car_ids)
+                rv1[0] = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/race_manager?race_id=%d&heat_id=3" % race_id
 
-    first_found = False
-    done_count = 0
-    for race_idx in range(run_id - 1, -1, -1):
-        if race_results[race_idx] is True:
-            done_count += 1
+                # for race_obj in race_obj_list:
+                #     dcd.RaceDb.query.filter_by(car_id=race_obj.car_id).update({'in_race': True})
 
-            if first_found is False and race_idx < len(race_data_obj.run_data) and \
-                    race_data_obj.run_data[race_idx]['odd'] is False:
-                latest_run_id = race_idx
-                none_raced = False
-                first_found = True
+                race_data_obj.load_cars(race_id=int(url_params_dict['race_id']),
+                                        heat_id=3,
+                                        )
+                race_data_obj.build_race()
 
-    if done_count >= race_data_obj.run_count:
-        all_raced = True
+                LOGGER.info("    Callback time:%0.02f", time.time() - cb_start_time)
+                LOGGER.info(cd.HEAT_LINE % (race_id, 3))
 
-    if clicked_run_id == latest_run_id:
-        clicked_current = True
-
-    return latest_run_id, none_raced, all_raced, clicked_current
+    return rv1

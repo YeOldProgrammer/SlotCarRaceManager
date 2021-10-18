@@ -69,6 +69,7 @@ class RaceDb(DB_BASE):
     race_id = DB_COLUMN(DB_INTEGER, nullable=False)
     car_id = DB_COLUMN(DB_INTEGER, FOREIGN_KEY(CarDb.id), nullable=False)
     in_race = DB_COLUMN(DB_BOOL, nullable=False)
+    eliminated = DB_COLUMN(DB_INTEGER, nullable=False)
     buy_back = DB_COLUMN(DB_BOOL, nullable=False)
     odd_skips = DB_COLUMN(DB_INTEGER, nullable=False)
     track_left_count = DB_COLUMN(DB_INTEGER, nullable=False)
