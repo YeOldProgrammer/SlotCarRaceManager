@@ -10,10 +10,10 @@ dash_table==4.11.3
 dash-daq==0.5.0
 dash-bootstrap-components==0.12.2
 pylint==2.8.2
-click
-flask_sqlalchemy
+click==7.1.2
+flask_sqlalchemy==2.5.1
 
-pandas
-lxml
-html5lib
-bs4
+pandas==1.1.5
+lxml==4.6.3
+html5lib==1.1
+bs4==0.0.1
