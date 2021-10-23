@@ -456,12 +456,14 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
 
         car_list = output_list
         dbd.DB_DATA['DB'].session.commit()
+        updated_car_selected = []
 
         car_queued = []
-        for car_idx, car_data_dict in enumerate(car_data):
-            if car_idx in car_data_selected:
-                continue
-            car_queued.append(car_data_dict)
+        if car_data is not None:
+            for car_idx, car_data_dict in enumerate(car_data):
+                if car_idx in car_data_selected:
+                    continue
+                car_queued.append(car_data_dict)
 
     if orig_url != new_url and new_url != dash.no_update:
         LOGGER.info("        Changing url\nfrom:%s\n  to:%s", orig_url, new_url)
