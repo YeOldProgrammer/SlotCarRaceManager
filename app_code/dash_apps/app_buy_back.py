@@ -75,6 +75,7 @@ def gen_initial_div_data():
         inputs.append(Input(check_id, 'value'))
         outputs.append(Output(run_row_id, 'style'))
         outputs.append(Output(check_id, 'options'))
+        outputs.append(Output(check_id, 'value'))
         outputs.append(Output(driver_id, 'children'))
 
         div_data_output.append(
@@ -215,15 +216,29 @@ def generate_graph(**kwargs):
             driver_data[driver] = []
         driver_data[driver].append({'label': car_name, 'value': car_name})
 
+    if ctx.triggered:
+        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    else:
+        button_id = None
+
     idx = 0
     for driver_name in driver_data:
         idx += 1
+        car_list = []
+        for data_dict in driver_data[driver_name]:
+            car_list.append(data_dict['value'])
+
         rv1.append({'display': 'block'})
         rv1.append(driver_data[driver_name])
+        if button_id is None:
+            rv1.append(car_list)
+        else:
+            rv1.append(dash.no_update)
         rv1.append(driver_name)
 
     for idx in range(idx, int(cd.ENV_VARS['MAX_RACE_COUNT'] / 2)):
         rv1.append({'display': 'none'})
+        rv1.append(dash.no_update)
         rv1.append(dash.no_update)
         rv1.append(dash.no_update)
 
@@ -233,47 +248,45 @@ def generate_graph(**kwargs):
             for car_name in kwargs[data_key]:
                 car_ids.append(race_data_obj.car_name_to_car_id[car_name]['car_id'])
 
-    if ctx.triggered:
-        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-        if button_id == DONE_BUTTON:
-            buy_back_count = 0
-            for race_obj in race_obj_list:
-                if race_obj.car_id not in car_ids:
-                    # dcd.RaceDb.query.filter_by(car_id=race_obj.car_id).update({'in_race': False})
-                    continue
+    if button_id == DONE_BUTTON:
+        buy_back_count = 0
+        for race_obj in race_obj_list:
+            if race_obj.car_id not in car_ids:
+                # dcd.RaceDb.query.filter_by(car_id=race_obj.car_id).update({'in_race': False})
+                continue
 
-                dcd.RaceDb.query.filter_by(car_id=race_obj.car_id).update(
-                    {
-                        'buy_back': True,
-                        'in_race': True,
-                        'eliminated': 0,
-                    }
-                )
-                buy_back_count += 1
+            dcd.RaceDb.query.filter_by(car_id=race_obj.car_id).update(
+                {
+                    'buy_back': True,
+                    'in_race': True,
+                    'eliminated': 0,
+                }
+            )
+            buy_back_count += 1
 
-            if buy_back_count > 0:
-                dbd.DB_DATA['DB'].session.commit()
+        if buy_back_count > 0:
+            dbd.DB_DATA['DB'].session.commit()
 
-            if buy_back_count > 1:
-                LOGGER.info("Buy Back Round Needed - Race_id %d - count=%d %s",
-                            int(url_params_dict['race_id']), buy_back_count, car_ids)
-                rv1[0] = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/race_manager?race_id=%d&heat_id=2&buy_back=1" % \
-                         race_id
-                LOGGER.info("    Callback time:%0.02f", time.time() - cb_start_time)
-            else:
-                LOGGER.info("Buy Back Round Skipped - Race_id %d - count=%d %s",
-                            int(url_params_dict['race_id']), buy_back_count, car_ids)
-                rv1[0] = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/race_manager?race_id=%d&heat_id=3" % race_id
+        if buy_back_count > 1:
+            LOGGER.info("Buy Back Round Needed - Race_id %d - count=%d %s",
+                        int(url_params_dict['race_id']), buy_back_count, car_ids)
+            rv1[0] = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/race_manager?race_id=%d&heat_id=2&buy_back=1" % \
+                     race_id
+            LOGGER.info("    Callback time:%0.02f", time.time() - cb_start_time)
+        else:
+            LOGGER.info("Buy Back Round Skipped - Race_id %d - count=%d %s",
+                        int(url_params_dict['race_id']), buy_back_count, car_ids)
+            rv1[0] = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/race_manager?race_id=%d&heat_id=3" % race_id
 
-                # for race_obj in race_obj_list:
-                #     dcd.RaceDb.query.filter_by(car_id=race_obj.car_id).update({'in_race': True})
+            # for race_obj in race_obj_list:
+            #     dcd.RaceDb.query.filter_by(car_id=race_obj.car_id).update({'in_race': True})
 
-                race_data_obj.load_cars(race_id=int(url_params_dict['race_id']),
-                                        heat_id=3,
-                                        )
-                race_data_obj.build_race()
+            race_data_obj.load_cars(race_id=int(url_params_dict['race_id']),
+                                    heat_id=3,
+                                    )
+            race_data_obj.build_race()
 
-                LOGGER.info("    Callback time:%0.02f", time.time() - cb_start_time)
-                LOGGER.info(cd.HEAT_LINE % (race_id, 3))
+            LOGGER.info("    Callback time:%0.02f", time.time() - cb_start_time)
+            LOGGER.info(cd.HEAT_LINE % (race_id, 3))
 
     return rv1
