@@ -1,3 +1,4 @@
+import os
 import json
 import dash
 import time
@@ -18,6 +19,7 @@ import app_code.common.db_custom_def as dcd
 from app_code.common.dash_util import dash_kwarg
 import app_code.common.race_logic as rl
 import app_code.dash_apps.app_layouts as ala
+
 
 LOGGER = logging.getLogger(al.LOGGER_NAME)
 
@@ -124,6 +126,13 @@ def generate_graph(new_race_button, orig_url_params_str):
         order_by(dcd.RaceDb.eliminated). \
         all()
 
+    heat_obj_list = dcd.HeatDb.query. \
+        filter_by(race_id=race_id). \
+        order_by(dcd.HeatDb.heat_id, dcd.HeatDb.run_id). \
+        all()
+
+    save_report_data(race_data_obj, race_obj_list, heat_obj_list)
+
     div_data = []
     max_heat = 0
     winner_count = 0
@@ -185,3 +194,170 @@ def generate_graph(new_race_button, orig_url_params_str):
             ], align='center', style={'margin-top': '20px'}))
 
     return div_data, dash.no_update
+
+
+def save_report_data(race_data_obj, race_obj_list, heat_obj_list):
+    race_list = []
+    heat_list = []
+    car_data = {}
+    run_data = []
+
+    for race_obj in race_obj_list:
+        race_list.append(race_obj.__dict__)
+
+    max_heat = 0
+    for heat_obj in heat_obj_list:
+        if heat_obj.heat_id > max_heat:
+            max_heat = heat_obj.heat_id
+    max_heat += 1
+    max_last_heat = 0
+
+    for heat_obj in heat_obj_list:
+        heat_list.append(heat_obj.__dict__)
+        driver_right = ''
+        car_right = ''
+
+        max_last_heat = 0
+        car_left = race_data_obj.car_id_to_car_name[heat_obj.car_id_left]['car_name']
+        driver_left = race_data_obj.car_id_to_car_name[heat_obj.car_id_left]['driver_name']
+        if heat_obj.car_id_left not in car_data:
+            car_data[heat_obj.car_id_left] = {
+                'car_name': car_left,
+                'driver_name': driver_left,
+                'last_heat': 0,
+                'rank': 0,
+                'wins': 0,
+                'wins_no_buy_back': 0,
+                'buy_backs': 0,
+                'results': ['     '] * max_heat
+            }
+
+        if heat_obj.car_id_right != 0:
+            car_right = race_data_obj.car_id_to_car_name[heat_obj.car_id_right]['car_name']
+            driver_right = race_data_obj.car_id_to_car_name[heat_obj.car_id_right]['driver_name']
+            if heat_obj.car_id_right not in car_data:
+                car_data[heat_obj.car_id_right] = {
+                    'car_name': car_right,
+                    'driver_name': driver_right,
+                    'last_heat': 0,
+                    'rank': 0,
+                    'wins': 0,
+                    'wins_no_buy_back': 0,
+                    'buy_backs': 0,
+                    'results': ['     '] * max_heat
+                }
+
+        if heat_obj.odd is True and heat_obj.heat_id >= max_heat:
+            car_data[heat_obj.car_id_left]['results'][heat_obj.heat_id] = 'W    '
+            car_data[heat_obj.car_id_left]['last_heat'] = heat_obj.heat_id
+            run_data.append({
+                'heat_id': heat_obj.heat_id, 'run_id': heat_obj.run_id,
+                'driver_left': driver_left, 'car_left': car_left,
+                'winner': 'Winner',
+                'driver_right': driver_right, 'car_right': car_right,
+            })
+            max_last_heat = heat_obj.heat_id
+        elif heat_obj.odd is True:
+            car_data[heat_obj.car_id_left]['results'][heat_obj.heat_id] = 'O    '
+            car_data[heat_obj.car_id_left]['last_heat'] = heat_obj.heat_id
+            car_data[heat_obj.car_id_left]['buy_backs'] += 1
+            run_data.append({
+                'heat_id': heat_obj.heat_id, 'run_id': heat_obj.run_id,
+                'driver_left': driver_left, 'car_left': car_left,
+                'winner': '      ',
+                'driver_right': driver_right, 'car_right': car_right,
+            })
+            max_last_heat = heat_obj.heat_id
+        elif heat_obj.win_id == 1:
+            car_data[heat_obj.car_id_left]['results'][heat_obj.heat_id] = 'L+:%02d' % heat_obj.run_id
+            car_data[heat_obj.car_id_right]['results'][heat_obj.heat_id] = 'R-:%02d' % heat_obj.run_id
+            car_data[heat_obj.car_id_left]['wins'] += 1
+            if heat_obj.heat_id != 2:
+                car_data[heat_obj.car_id_left]['wins_no_buy_back'] += 1
+            car_data[heat_obj.car_id_left]['last_heat'] = heat_obj.heat_id
+            car_data[heat_obj.car_id_right]['last_heat'] = heat_obj.heat_id
+            max_last_heat = heat_obj.heat_id
+            run_data.append({
+                'heat_id': heat_obj.heat_id, 'run_id': heat_obj.run_id,
+                'driver_left': driver_left, 'car_left': car_left,
+                'winner': '<-----',
+                'driver_right': driver_right, 'car_right': car_right,
+            })
+        elif heat_obj.win_id == 2:
+            car_data[heat_obj.car_id_left]['results'][heat_obj.heat_id] = 'L-:%02d' % heat_obj.run_id
+            car_data[heat_obj.car_id_right]['results'][heat_obj.heat_id] = 'R+:%02d' % heat_obj.run_id
+            car_data[heat_obj.car_id_right]['wins'] += 1
+            if heat_obj.heat_id != 2:
+                car_data[heat_obj.car_id_right]['wins_no_buy_back'] += 1
+            car_data[heat_obj.car_id_left]['last_heat'] = heat_obj.heat_id
+            car_data[heat_obj.car_id_right]['last_heat'] = heat_obj.heat_id
+            max_last_heat = heat_obj.heat_id
+            run_data.append({
+                'heat_id': heat_obj.heat_id, 'run_id': heat_obj.run_id,
+                'driver_left': driver_left, 'car_left': car_left,
+                'winner': '----->',
+                'driver_right': driver_right, 'car_right': car_right,
+            })
+        else:
+            pass
+
+    output_dict = {
+        'race': race_list,
+        'heat': heat_list,
+        'car_data': car_data,
+    }
+
+    rank = 0
+    for heat_id in range(max_last_heat, 1, -1):
+        found_data = []
+        for car_id in car_data:
+            car_info = car_data[car_id]
+            if car_info['last_heat'] != heat_id:
+                continue
+            found_data.append(car_info)
+
+        count = len(found_data)
+        if count == 1:
+            rank += 1
+            found_data[0]['rank'] = rank
+        elif count == 2:
+            if found_data[0]['wins_no_buy_back'] > found_data[1]['wins_no_buy_back']:
+                rank += 1
+                found_data[0]['rank'] = rank
+                rank += 1
+                found_data[1]['rank'] = rank
+            else:
+                rank += 1
+                found_data[1]['rank'] = rank
+                rank += 1
+                found_data[0]['rank'] = rank
+        else:
+            for found_rec in found_data:
+                rank += 1
+                found_rec['rank'] = rank
+
+    car_data_format = "CARDATA | %-15s | %-15s | %2s | %2s | %2s | %2s | %2s | %s |"
+    print(car_data_format % (
+        'Driver', 'Car', ' R', ' W', 'AW', 'BB', 'LH', 'Ht:01 | Ht:02 | Ht:03 | Ht:04 | Ht:05 | Ht:06 | Ht:06 | Ht:07'
+    ))
+    car_data_format = "CARDATA | %-15s | %-15s | %2d | %2d | %2d | %2d | %2d | %s |"
+    for driver_name in sorted(race_data_obj.driver_name_to_driver_id):
+        for car_id in car_data:
+            car_info = car_data[car_id]
+            if car_info['driver_name'] != driver_name:
+                continue
+
+            print(car_data_format %
+                  (driver_name, car_info['car_name'], car_info['rank'], car_info['wins'], car_info['wins_no_buy_back'],
+                   car_info['buy_backs'], car_info['last_heat'], ' | '.join(car_info['results'][1:])))
+
+    for run_dict in run_data:
+        print("RUNDATA | %2d | %2d | %-15s | %-15s | %-6s | %-15s %-15s |" %
+              (run_dict['heat_id'], run_dict['run_id'],
+               run_dict['driver_left'], run_dict['car_left'],
+               run_dict['winner'],
+               run_dict['driver_right'], run_dict['car_right']))
+
+    result_file = os.path.join(cd.ENV_VARS['LOG_DIR'], "results.log")
+    with open(result_file, 'w') as result_fh:
+        json.dump(output_dict, result_fh, indent=4, default=str)
