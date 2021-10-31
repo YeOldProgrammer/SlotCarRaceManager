@@ -3,12 +3,13 @@ import dash
 import dash_daq
 import time
 import logging
+import dash_table
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 import dash_html_components as html
 from sqlalchemy import func
 from dash.exceptions import PreventUpdate
-# import plotly.express as px
+import plotly.express as px
 import plotly.graph_objects as go
 from dash.dependencies import Input, Output
 from app_code.common import app_logging as al
@@ -37,6 +38,8 @@ RE_SHUFFLE_BUTTON = BASE_ID + 'shuffle'
 REMAINING_PIE_CHART = BASE_ID + "race_remaining_pie_chart"
 REMAINING_TIME_CHART = BASE_ID + "time_remaining_pie_chart"
 STATS_ROW = BASE_ID + 'stats'
+DRIVER_GRAPH = BASE_ID + 'driver_graph'
+DRIVER_TABLE = BASE_ID + 'driver_table'
 URL_ID = BASE_ID + 'url'
 TIMER_TRIGGER = BASE_ID + 'timer_trigger'
 
@@ -200,6 +203,9 @@ def gen_initial_div_data():
     outputs.append(Output(REMAINING_PIE_CHART, 'figure'))
     outputs.append(Output(TIMER_TRIGGER, 'n_intervals'))
     outputs.append(Output(TIMER_TRIGGER, 'interval'))
+    outputs.append(Output(DRIVER_GRAPH, 'figure'))
+    outputs.append(Output(DRIVER_TABLE, 'data'))
+    outputs.append(Output(DRIVER_TABLE, 'columns'))
 
     for idx in range(cd.ENV_VARS['MAX_RACE_COUNT']):
         run_id = idx
@@ -357,7 +363,26 @@ ala.APP_LAYOUTS[ala.APP_RACE_MANAGER] = html.Div(
             # style={'height': '100px', 'backgroundColor': 'blue', 'height': '100px'}
         ),
         html.Div(
-            children=div_data,
+            children=[
+                html.Div(div_data),
+                dcc.Graph(id=DRIVER_GRAPH),
+                dash_table.DataTable(
+                    id=DRIVER_TABLE,
+                    data=[],
+                    columns=[],
+                    sort_action='native',
+                    sort_mode='single',
+                    style_cell={'padding': '10px'},
+                    style_header={
+                        'backgroundColor': 'rgb(30, 30, 30)',
+                        'color': 'white'
+                    },
+                    style_data={
+                        'backgroundColor': 'rgb(50, 50, 50)',
+                        'color': 'white'
+                    },
+                ),
+            ],
             style={'margin-left': '60px', 'height': f"{cd.ENV_VARS['BODY_DISPLAY_HEIGHT']}px", 'overflow-y': 'scroll',
                    'overflow-x': 'hidden', 'backgroundColor': cd.ENV_VARS['BODY_DISPLAY_COLOR']}
         ),
@@ -369,14 +394,14 @@ ala.APP_LAYOUTS[ala.APP_RACE_MANAGER] = html.Div(
                 dbc.Button('Re-Shuffle', id=RE_SHUFFLE_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
                 # dbc.Button('New Race Button', id=NEW_RACE_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
                 html.Img(src=wl.DASH_APP.get_asset_url(cd.ENV_VARS['LOGO_FILE']), style={'margin-left': '20px'}),
-                html.Div([
-                    html.H4("Purse"),
-                    html.Hr(),
-                    html.Div("1st: X"),
-                    html.Div("2nd: X"),
-                    html.Div("3rd: X"),
-                    html.Div("4th: X"),
-                ])
+                # html.Div([
+                #     html.H4("Purse"),
+                #     html.Hr(),
+                #     html.Div("1st: X"),
+                #     html.Div("2nd: X"),
+                #     html.Div("3rd: X"),
+                #     html.Div("4th: X"),
+                # ])
             ],
             style={'height': '100px'}
             # style={'height': '100px', 'backgroundColor': 'red'}
@@ -597,8 +622,29 @@ def generate_graph(**kwargs):
 
     LOGGER.info("        Interval time Enabled:%s (%d)", timer_enabled, timer_interval)
 
+    driver_columns = [
+        {'name': 'Driver Name', 'id': 'driver_name'},
+        {'name': 'Cars', 'id': 'car_count'},
+        {'name': 'Wins', 'id': 'win_count'},
+        {'name': 'Loses', 'id': 'lose_count'},
+        {'name': 'Heat Reached', 'id': 'max_heat'},
+        {'name': 'Odd Cars', 'id': 'odd_count'},
+        {'name': 'Buy Backs', 'id': 'buy_back'},
+    ]
+
+    race_dict_list, heat_dict_list, race_df, heat_df, driver_df = race_data_obj.get_race_results(print_results=False)
+    driver_fig = px.bar(driver_df.sort_values(by='win_count'), x='win_count', y='driver_name')
+    driver_fig.update_layout({
+        'font_color': 'white',
+        'plot_bgcolor': 'rgba(0, 0, 0, 0)',
+        'paper_bgcolor': 'rgba(0, 0, 0, 0)',
+        'xaxis_title': 'Total Wins',
+        'yaxis_title': 'Driver Name',
+        'title': 'Driver Results'
+    })
+
     rv1 = [new_url_params_str, stats_data, start_style, done_style, next_heat_style, shuffle_style, graph,
-           updated_timer_value, timer_interval]
+           updated_timer_value, timer_interval, driver_fig, driver_df.to_dict('records'), driver_columns]
 
     for run_id in range(int(cd.ENV_VARS['MAX_RACE_COUNT'])):
         if run_id >= race_data_obj.run_count:

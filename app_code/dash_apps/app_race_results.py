@@ -4,7 +4,6 @@ import dash
 import time
 import logging
 import dash_table
-import pandas as pd
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 import dash_html_components as html
@@ -32,8 +31,10 @@ BASE_ID = 'arr_'
 NEW_RACE_BUTTON = BASE_ID + 'new_race'
 DIV_DATA = BASE_ID + '_div_data'
 URL_ID = BASE_ID + 'url'
-RACE_GRAPH = BASE_ID + 'graph'
-RACE_TABLE = BASE_ID + 'table'
+DRIVER_GRAPH = BASE_ID + 'driver_graph'
+DRIVER_TABLE = BASE_ID + 'driver_table'
+RACE_GRAPH = BASE_ID + 'race_graph'
+RACE_TABLE = BASE_ID + 'race_table'
 
 
 ala.APP_LAYOUTS[ala.APP_RACE_RESULT] = html.Div(
@@ -55,41 +56,54 @@ ala.APP_LAYOUTS[ala.APP_RACE_RESULT] = html.Div(
             # style={'height': '100px', 'backgroundColor': 'blue', 'height': '100px'}
         ),
         html.Div(
-            [
-                html.Div([
-                    html.Div(
-                        children=[],
-                        id=DIV_DATA,
-                        style={'display': 'inline-block'}
-                    ),
-                    html.Div(
-                        children=[
-                            dcc.Graph(id=RACE_GRAPH),
-                            dash_table.DataTable(
-                                id=RACE_TABLE,
-                                data=[],
-                                columns=[],
-                                sort_action='native',
-                                sort_mode='single',
-                                style_header={
-                                    'backgroundColor': 'rgb(30, 30, 30)',
-                                    'color': 'white'
-                                },
-                                style_data={
-                                    'backgroundColor': 'rgb(50, 50, 50)',
-                                    'color': 'white'
-                                },
-                            ),
-                        ],
-                        style={'display': 'inline-block', 'margin-left': '60px'}
-                    ),
-                ]),
-            ],
+            children=dbc.Row([
+                dbc.Col(children=[
+                    html.Div(children=[], id=DIV_DATA),
+                ], width='auto'),
+                dbc.Col(children=[
+                    html.Div(children=[
+                        dcc.Graph(id=RACE_GRAPH),
+                        dash_table.DataTable(
+                            id=RACE_TABLE,
+                            data=[],
+                            columns=[],
+                            sort_action='native',
+                            sort_mode='single',
+                            style_cell={'padding': '10px'},
+                            style_header={
+                                'backgroundColor': 'rgb(30, 30, 30)',
+                                'color': 'white'
+                            },
+                            style_data={
+                                'backgroundColor': 'rgb(50, 50, 50)',
+                                'color': 'white'
+                            },
+                        ),
+                        dcc.Graph(id=DRIVER_GRAPH),
+                        dash_table.DataTable(
+                            id=DRIVER_TABLE,
+                            data=[],
+                            columns=[],
+                            sort_action='native',
+                            sort_mode='single',
+                            style_cell={'padding': '10px'},
+                            style_header={
+                                'backgroundColor': 'rgb(30, 30, 30)',
+                                'color': 'white'
+                            },
+                            style_data={
+                                'backgroundColor': 'rgb(50, 50, 50)',
+                                'color': 'white'
+                            },
+                        ),
+                    ])
+                ], width='auto'),
+            ]),
             style={'margin-left': '60px', 'height': f"{cd.ENV_VARS['BODY_DISPLAY_HEIGHT']}px", 'overflow-y': 'scroll',
                    'overflow-x': 'hidden', 'backgroundColor': cd.ENV_VARS['BODY_DISPLAY_COLOR']}
         ),
         html.Div(
-            [
+            children=[
                 dbc.Button('New Race', id=NEW_RACE_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
             ],
             style={'height': '100px'}
@@ -119,8 +133,11 @@ def parse_url_params_str(url_params_str):
     Output(DIV_DATA, 'children'),
     Output(URL_ID, 'href'),
     Output(RACE_GRAPH, 'figure'),
+    Output(DRIVER_GRAPH, 'figure'),
     Output(RACE_TABLE, 'data'),
     Output(RACE_TABLE, 'columns'),
+    Output(DRIVER_TABLE, 'data'),
+    Output(DRIVER_TABLE, 'columns'),
     [
         Input(NEW_RACE_BUTTON, "n_clicks"),
         Input(URL_ID, "href"),
@@ -154,14 +171,14 @@ def generate_graph(new_race_button, orig_url_params_str):
         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
         if button_id == NEW_RACE_BUTTON:
             new_url_params_str = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/race_entry"
-            return dash.no_update, new_url_params_str, dash.no_update, [], []
+            return dash.no_update, new_url_params_str, dash.no_update, dash.no_update, [], [], [], []
 
-    race_dict_list, heat_dict_list, race_df, heat_df = race_data_obj.get_race_results(print_results=True)
+    race_dict_list, heat_dict_list, race_df, heat_df, driver_df = race_data_obj.get_race_results(print_results=True)
     save_report_data(race_data_obj, race_dict_list, heat_dict_list)
 
     div_data = []
     for race_dict in race_dict_list:
-        if race_dict['rank'] <= 4:
+        if race_dict['rank'] <= 5:
             div_data.append(dbc.Row([
                 dbc.Col(html.Img(src=wl.DASH_APP.get_asset_url('place_%d.png' % race_dict['rank']),
                                  style={'height': '100px', 'width': '100px'}),
@@ -172,8 +189,8 @@ def generate_graph(new_race_button, orig_url_params_str):
                         width='auto'),
             ], align='center', style={'margin-top': '20px'}))
 
-    fig = px.bar(race_df.sort_values(by='eliminated'), x='eliminated', y='car_name', color='driver_name')
-    fig.update_layout({
+    race_fig = px.bar(race_df.sort_values(by='eliminated'), x='eliminated', y='car_name', color='driver_name')
+    race_fig.update_layout({
         'font_color': 'white',
         'plot_bgcolor': 'rgba(0, 0, 0, 0)',
         'paper_bgcolor': 'rgba(0, 0, 0, 0)',
@@ -182,7 +199,17 @@ def generate_graph(new_race_button, orig_url_params_str):
         'title': 'Race Results'
     })
 
-    columns = [
+    driver_fig = px.bar(driver_df.sort_values(by='win_count'), x='win_count', y='driver_name')
+    driver_fig.update_layout({
+        'font_color': 'white',
+        'plot_bgcolor': 'rgba(0, 0, 0, 0)',
+        'paper_bgcolor': 'rgba(0, 0, 0, 0)',
+        'xaxis_title': 'Total Wins',
+        'yaxis_title': 'Driver Name',
+        'title': 'Driver Results'
+    })
+
+    race_columns = [
         {'name': 'Driver Name', 'id': 'driver_name'},
         {'name': 'Car Name', 'id': 'car_name'},
         {'name': 'Rank', 'id': 'rank'},
@@ -190,7 +217,19 @@ def generate_graph(new_race_button, orig_url_params_str):
         {'name': 'Heat Reached', 'id': 'eliminated'},
     ]
 
-    return div_data, dash.no_update, fig, race_df.to_dict('records'), columns
+    driver_columns = [
+        {'name': 'Driver Name', 'id': 'driver_name'},
+        {'name': 'Cars', 'id': 'car_count'},
+        {'name': 'Wins', 'id': 'win_count'},
+        {'name': 'Loses', 'id': 'lose_count'},
+        {'name': 'Heat Reached', 'id': 'max_heat'},
+        {'name': 'Odd Cars', 'id': 'odd_count'},
+        {'name': 'Buy Backs', 'id': 'buy_back'},
+    ]
+
+    return div_data, dash.no_update, race_fig, driver_fig, \
+           race_df.to_dict('records'), race_columns, \
+           driver_df.to_dict('records'), driver_columns
 
 
 def save_report_data(race_data_obj, race_dict_list, heat_dict_list):
