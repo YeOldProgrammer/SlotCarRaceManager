@@ -3,13 +3,15 @@ import json
 import dash
 import time
 import logging
+import dash_table
+import pandas as pd
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 import dash_html_components as html
 from sqlalchemy import func
 from dash.exceptions import PreventUpdate
-# import plotly.express as px
-import plotly.graph_objects as go
+import plotly.express as px
+# import plotly.graph_objects as go
 from dash.dependencies import Input, Output
 from app_code.common import app_logging as al
 import app_code.common.db_data as dbd
@@ -30,6 +32,8 @@ BASE_ID = 'arr_'
 NEW_RACE_BUTTON = BASE_ID + 'new_race'
 DIV_DATA = BASE_ID + '_div_data'
 URL_ID = BASE_ID + 'url'
+RACE_GRAPH = BASE_ID + 'graph'
+RACE_TABLE = BASE_ID + 'table'
 
 
 ala.APP_LAYOUTS[ala.APP_RACE_RESULT] = html.Div(
@@ -51,8 +55,36 @@ ala.APP_LAYOUTS[ala.APP_RACE_RESULT] = html.Div(
             # style={'height': '100px', 'backgroundColor': 'blue', 'height': '100px'}
         ),
         html.Div(
-            children=[],
-            id=DIV_DATA,
+            [
+                html.Div([
+                    html.Div(
+                        children=[],
+                        id=DIV_DATA,
+                        style={'display': 'inline-block'}
+                    ),
+                    html.Div(
+                        children=[
+                            dcc.Graph(id=RACE_GRAPH),
+                            dash_table.DataTable(
+                                id=RACE_TABLE,
+                                data=[],
+                                columns=[],
+                                sort_action='native',
+                                sort_mode='single',
+                                style_header={
+                                    'backgroundColor': 'rgb(30, 30, 30)',
+                                    'color': 'white'
+                                },
+                                style_data={
+                                    'backgroundColor': 'rgb(50, 50, 50)',
+                                    'color': 'white'
+                                },
+                            ),
+                        ],
+                        style={'display': 'inline-block', 'margin-left': '60px'}
+                    ),
+                ]),
+            ],
             style={'margin-left': '60px', 'height': f"{cd.ENV_VARS['BODY_DISPLAY_HEIGHT']}px", 'overflow-y': 'scroll',
                    'overflow-x': 'hidden', 'backgroundColor': cd.ENV_VARS['BODY_DISPLAY_COLOR']}
         ),
@@ -86,6 +118,9 @@ def parse_url_params_str(url_params_str):
 @wl.DASH_APP.callback(
     Output(DIV_DATA, 'children'),
     Output(URL_ID, 'href'),
+    Output(RACE_GRAPH, 'figure'),
+    Output(RACE_TABLE, 'data'),
+    Output(RACE_TABLE, 'columns'),
     [
         Input(NEW_RACE_BUTTON, "n_clicks"),
         Input(URL_ID, "href"),
@@ -119,109 +154,71 @@ def generate_graph(new_race_button, orig_url_params_str):
         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
         if button_id == NEW_RACE_BUTTON:
             new_url_params_str = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/race_entry"
-            return dash.no_update, new_url_params_str
+            return dash.no_update, new_url_params_str, dash.no_update, [], []
 
-    race_obj_list = dcd.RaceDb.query. \
-        filter_by(race_id=race_id). \
-        order_by(dcd.RaceDb.eliminated). \
-        all()
-
-    heat_obj_list = dcd.HeatDb.query. \
-        filter_by(race_id=race_id). \
-        order_by(dcd.HeatDb.heat_id, dcd.HeatDb.run_id). \
-        all()
-
-    save_report_data(race_data_obj, race_obj_list, heat_obj_list)
+    race_dict_list, heat_dict_list, race_df, heat_df = race_data_obj.get_race_results(print_results=True)
+    save_report_data(race_data_obj, race_dict_list, heat_dict_list)
 
     div_data = []
-    max_heat = 0
-    winner_count = 0
-    for race_obj in race_obj_list:
-        max_heat = max(race_obj.eliminated, max_heat)
-        car_name = race_data_obj.car_id_to_car_name[race_obj.car_id]['car_name']
-        driver_name = race_data_obj.car_id_to_car_name[race_obj.car_id]['driver_name']
-        value = max_heat - race_obj.eliminated
-        if race_obj.eliminated == 0:
+    for race_dict in race_dict_list:
+        if race_dict['rank'] <= 4:
             div_data.append(dbc.Row([
-                dbc.Col(html.Img(src=wl.DASH_APP.get_asset_url('place_1.png'),
+                dbc.Col(html.Img(src=wl.DASH_APP.get_asset_url('place_%d.png' % race_dict['rank']),
                                  style={'height': '100px', 'width': '100px'}),
                         width='auto'),
-                dbc.Col(html.H3(driver_name),
+                dbc.Col(html.H3(race_dict['driver_name']),
                         width='auto'),
-                dbc.Col(html.H4(car_name),
+                dbc.Col(html.H4(race_dict['car_name']),
                         width='auto'),
             ], align='center', style={'margin-top': '20px'}))
 
-            winner_count += 1
-        elif value <= 1:
-            winner_count += 1
+    fig = px.bar(race_df.sort_values(by='eliminated'), x='eliminated', y='car_name', color='driver_name')
+    fig.update_layout({
+        'font_color': 'white',
+        'plot_bgcolor': 'rgba(0, 0, 0, 0)',
+        'paper_bgcolor': 'rgba(0, 0, 0, 0)',
+        'xaxis_title': 'Heat Reached',
+        'yaxis_title': 'Car Name',
+        'title': 'Race Results'
+    })
 
-    for race_obj in reversed(race_obj_list):
-        value = max_heat - race_obj.eliminated
-        car_name = race_data_obj.car_id_to_car_name[race_obj.car_id]['car_name']
-        driver_name = race_data_obj.car_id_to_car_name[race_obj.car_id]['driver_name']
-        if value == 0:
-            div_data.append(dbc.Row([
-                dbc.Col(html.Img(src=wl.DASH_APP.get_asset_url('place_2.png'),
-                                 style={'height': '100px', 'width': '100px'}),
-                        width='auto'),
-                dbc.Col(html.H3(driver_name),
-                        width='auto'),
-                dbc.Col(html.H4(car_name),
-                        width='auto'),
-            ], align='center', style={'margin-top': '20px'}))
+    columns = [
+        {'name': 'Driver Name', 'id': 'driver_name'},
+        {'name': 'Car Name', 'id': 'car_name'},
+        {'name': 'Rank', 'id': 'rank'},
+        {'name': 'Wins', 'id': 'win_count'},
+        {'name': 'Heat Reached', 'id': 'eliminated'},
+    ]
 
-        elif value == 1:
-            div_data.append(dbc.Row([
-                dbc.Col(html.Img(src=wl.DASH_APP.get_asset_url('place_3.png'),
-                                 style={'height': '100px', 'width': '100px'}),
-                        width='auto'),
-                dbc.Col(html.H3(driver_name),
-                        width='auto'),
-                dbc.Col(html.H4(car_name),
-                        width='auto'),
-            ], align='center', style={'margin-top': '20px'}))
-
-        elif value == 2 and winner_count < 4:
-            div_data.append(dbc.Row([
-                dbc.Col(html.Img(src=wl.DASH_APP.get_asset_url('place_4.png'),
-                                 style={'height': '100px', 'width': '100px'}),
-                        width='auto'),
-                dbc.Col(html.H3(driver_name),
-                        width='auto'),
-                dbc.Col(html.H4(car_name),
-                        width='auto'),
-            ], align='center', style={'margin-top': '20px'}))
-
-    return div_data, dash.no_update
+    return div_data, dash.no_update, fig, race_df.to_dict('records'), columns
 
 
-def save_report_data(race_data_obj, race_obj_list, heat_obj_list):
+def save_report_data(race_data_obj, race_dict_list, heat_dict_list):
     race_list = []
     heat_list = []
     car_data = {}
     run_data = []
 
-    for race_obj in race_obj_list:
-        race_list.append(race_obj.__dict__)
+    for race_dict in race_dict_list:
+        race_list.append(race_dict)
 
     max_heat = 0
-    for heat_obj in heat_obj_list:
-        if heat_obj.heat_id > max_heat:
-            max_heat = heat_obj.heat_id
+    for heat_dict in heat_dict_list:
+        if heat_dict['heat_id'] > max_heat:
+            max_heat = heat_dict['heat_id']
     max_heat += 1
     max_last_heat = 0
 
-    for heat_obj in heat_obj_list:
-        heat_list.append(heat_obj.__dict__)
+    for heat_dict in heat_dict_list:
+        heat_list.append(heat_dict)
         driver_right = ''
         car_right = ''
 
         max_last_heat = 0
-        car_left = race_data_obj.car_id_to_car_name[heat_obj.car_id_left]['car_name']
-        driver_left = race_data_obj.car_id_to_car_name[heat_obj.car_id_left]['driver_name']
-        if heat_obj.car_id_left not in car_data:
-            car_data[heat_obj.car_id_left] = {
+        car_left = race_data_obj.car_id_to_car_name[heat_dict['car_id_left']]['car_name']
+        driver_left = race_data_obj.car_id_to_car_name[heat_dict['car_id_left']]['driver_name']
+        if heat_dict['car_id_left'] not in car_data:
+            car_data[heat_dict['car_id_left']] = {
                 'car_name': car_left,
                 'driver_name': driver_left,
                 'last_heat': 0,
@@ -232,11 +229,11 @@ def save_report_data(race_data_obj, race_obj_list, heat_obj_list):
                 'results': ['     '] * max_heat
             }
 
-        if heat_obj.car_id_right != 0:
-            car_right = race_data_obj.car_id_to_car_name[heat_obj.car_id_right]['car_name']
-            driver_right = race_data_obj.car_id_to_car_name[heat_obj.car_id_right]['driver_name']
-            if heat_obj.car_id_right not in car_data:
-                car_data[heat_obj.car_id_right] = {
+        if heat_dict['car_id_right'] != 0:
+            car_right = race_data_obj.car_id_to_car_name[heat_dict['car_id_right']]['car_name']
+            driver_right = race_data_obj.car_id_to_car_name[heat_dict['car_id_right']]['driver_name']
+            if heat_dict['car_id_right'] not in car_data:
+                car_data[heat_dict['car_id_right']] = {
                     'car_name': car_right,
                     'driver_name': driver_right,
                     'last_heat': 0,
@@ -247,53 +244,53 @@ def save_report_data(race_data_obj, race_obj_list, heat_obj_list):
                     'results': ['     '] * max_heat
                 }
 
-        if heat_obj.odd is True and heat_obj.heat_id >= max_heat:
-            car_data[heat_obj.car_id_left]['results'][heat_obj.heat_id] = 'W    '
-            car_data[heat_obj.car_id_left]['last_heat'] = heat_obj.heat_id
+        if heat_dict['odd'] == 0 and heat_dict['heat_id'] >= max_heat:
+            car_data[heat_dict['car_id_left']]['results'][heat_dict['heat_id']] = 'W    '
+            car_data[heat_dict['car_id_left']]['last_heat'] = heat_dict['heat_id']
             run_data.append({
-                'heat_id': heat_obj.heat_id, 'run_id': heat_obj.run_id,
+                'heat_id': heat_dict['heat_id'], 'run_id': heat_dict['run_id'],
                 'driver_left': driver_left, 'car_left': car_left,
                 'winner': 'Winner',
                 'driver_right': driver_right, 'car_right': car_right,
             })
-            max_last_heat = heat_obj.heat_id
-        elif heat_obj.odd is True:
-            car_data[heat_obj.car_id_left]['results'][heat_obj.heat_id] = 'O    '
-            car_data[heat_obj.car_id_left]['last_heat'] = heat_obj.heat_id
-            car_data[heat_obj.car_id_left]['buy_backs'] += 1
+            max_last_heat = heat_dict['heat_id']
+        elif heat_dict['odd'] == 1:
+            car_data[heat_dict['car_id_left']]['results'][heat_dict['heat_id']] = 'O    '
+            car_data[heat_dict['car_id_left']]['last_heat'] = heat_dict['heat_id']
+            car_data[heat_dict['car_id_left']]['buy_backs'] += 1
             run_data.append({
-                'heat_id': heat_obj.heat_id, 'run_id': heat_obj.run_id,
+                'heat_id': heat_dict['heat_id'], 'run_id': heat_dict['run_id'],
                 'driver_left': driver_left, 'car_left': car_left,
                 'winner': '      ',
                 'driver_right': driver_right, 'car_right': car_right,
             })
-            max_last_heat = heat_obj.heat_id
-        elif heat_obj.win_id == 1:
-            car_data[heat_obj.car_id_left]['results'][heat_obj.heat_id] = 'L+:%02d' % heat_obj.run_id
-            car_data[heat_obj.car_id_right]['results'][heat_obj.heat_id] = 'R-:%02d' % heat_obj.run_id
-            car_data[heat_obj.car_id_left]['wins'] += 1
-            if heat_obj.heat_id != 2:
-                car_data[heat_obj.car_id_left]['wins_no_buy_back'] += 1
-            car_data[heat_obj.car_id_left]['last_heat'] = heat_obj.heat_id
-            car_data[heat_obj.car_id_right]['last_heat'] = heat_obj.heat_id
-            max_last_heat = heat_obj.heat_id
+            max_last_heat = heat_dict['heat_id']
+        elif heat_dict['win_id'] == 1:
+            car_data[heat_dict['car_id_left']]['results'][heat_dict['heat_id']] = 'L+:%02d' % heat_dict['run_id']
+            car_data[heat_dict['car_id_right']]['results'][heat_dict['heat_id']] = 'R-:%02d' % heat_dict['run_id']
+            car_data[heat_dict['car_id_left']]['wins'] += 1
+            if heat_dict['heat_id'] != 2:
+                car_data[heat_dict['car_id_left']]['wins_no_buy_back'] += 1
+            car_data[heat_dict['car_id_left']]['last_heat'] = heat_dict['heat_id']
+            car_data[heat_dict['car_id_right']]['last_heat'] = heat_dict['heat_id']
+            max_last_heat = heat_dict['heat_id']
             run_data.append({
-                'heat_id': heat_obj.heat_id, 'run_id': heat_obj.run_id,
+                'heat_id': heat_dict['heat_id'], 'run_id': heat_dict['run_id'],
                 'driver_left': driver_left, 'car_left': car_left,
                 'winner': '<-----',
                 'driver_right': driver_right, 'car_right': car_right,
             })
-        elif heat_obj.win_id == 2:
-            car_data[heat_obj.car_id_left]['results'][heat_obj.heat_id] = 'L-:%02d' % heat_obj.run_id
-            car_data[heat_obj.car_id_right]['results'][heat_obj.heat_id] = 'R+:%02d' % heat_obj.run_id
-            car_data[heat_obj.car_id_right]['wins'] += 1
-            if heat_obj.heat_id != 2:
-                car_data[heat_obj.car_id_right]['wins_no_buy_back'] += 1
-            car_data[heat_obj.car_id_left]['last_heat'] = heat_obj.heat_id
-            car_data[heat_obj.car_id_right]['last_heat'] = heat_obj.heat_id
-            max_last_heat = heat_obj.heat_id
+        elif heat_dict['win_id'] == 2:
+            car_data[heat_dict['car_id_left']]['results'][heat_dict['heat_id']] = 'L-:%02d' % heat_dict['run_id']
+            car_data[heat_dict['car_id_right']]['results'][heat_dict['heat_id']] = 'R+:%02d' % heat_dict['run_id']
+            car_data[heat_dict['car_id_right']]['wins'] += 1
+            if heat_dict['heat_id'] != 2:
+                car_data[heat_dict['car_id_right']]['wins_no_buy_back'] += 1
+            car_data[heat_dict['car_id_left']]['last_heat'] = heat_dict['heat_id']
+            car_data[heat_dict['car_id_right']]['last_heat'] = heat_dict['heat_id']
+            max_last_heat = heat_dict['heat_id']
             run_data.append({
-                'heat_id': heat_obj.heat_id, 'run_id': heat_obj.run_id,
+                'heat_id': heat_dict['heat_id'], 'run_id': heat_dict['run_id'],
                 'driver_left': driver_left, 'car_left': car_left,
                 'winner': '----->',
                 'driver_right': driver_right, 'car_right': car_right,

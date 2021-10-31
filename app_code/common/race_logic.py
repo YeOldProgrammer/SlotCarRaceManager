@@ -3,6 +3,7 @@ import logging
 import os
 import shutil
 import json
+import pandas as pd
 from sqlalchemy import func, desc
 import app_code.common.app_logging as al
 import app_code.common.config_data as cd
@@ -240,10 +241,13 @@ class RaceData:
             # Find the least used driver
             min_skip_val = 99
             least_used_driver = ''
+            least_used_driver_pool = []
             for driver_balance in self.driver_balance:
-                if self.driver_balance[driver_balance]['skips'] < min_skip_val:
+                if self.driver_balance[driver_balance]['skips'] <= min_skip_val:
                     min_skip_val = self.driver_balance[driver_balance]['skips']
-                    least_used_driver = driver_balance
+                    least_used_driver_pool.append(driver_balance)
+
+            least_used_driver = random.choice(least_used_driver_pool)
 
             car1 = remaining_car_keys_by_driver[least_used_driver][0]
             key1 = least_used_driver + ':' + car1
@@ -611,6 +615,87 @@ class RaceData:
                 self.completed_race_count += 1
 
         self.current_drivers = len(current_drivers)
+
+    def get_race_results(self, print_results=False):
+        race_df = pd.read_sql("Select * from race_table where race_id=%d ORDER BY eliminated" % self.race_id,
+                              dbd.get_db_engine(dbd.APP_DB))
+        race_dict_list = race_df.to_dict('records')
+
+        heat_df = pd.read_sql("Select * from heat_table where race_id=%d ORDER BY heat_id, run_id" % self.race_id,
+                              dbd.get_db_engine(dbd.APP_DB))
+        heat_dict_list = heat_df.to_dict('records')
+
+        for heat_dict in heat_dict_list:
+            winner_id = -1
+            loser_id = -1
+            odd_id = -1
+            if heat_dict['odd'] == 1:
+                odd_id = heat_dict['car_id_left']
+            else:
+                if heat_dict['win_id'] == 1:
+                    winner_id = heat_dict['car_id_left']
+                    loser_id = heat_dict['car_id_right']
+                elif heat_dict['win_id'] == 2:
+                    winner_id = heat_dict['car_id_right']
+                    loser_id = heat_dict['car_id_left']
+
+            for race_dict in race_dict_list:
+                if race_dict['car_id'] == winner_id:
+                    race_dict['win_count'] = race_dict.get('win_count', 0) + 1
+                if race_dict['car_id'] == loser_id:
+                    race_dict['lose_count'] = race_dict.get('lose_count', 0) + 1
+                if race_dict['car_id'] == odd_id:
+                    race_dict['odd_count'] = race_dict.get('odd_count', 0) + 1
+
+        max_rank = 0
+        for race_dict in race_dict_list:
+            for init_field in ['win_count', 'lose_count', 'odd_count']:
+                if init_field not in race_dict:
+                    race_dict[init_field] = 0
+            if race_dict['eliminated'] > max_rank:
+                max_rank = race_dict['eliminated']
+            if race_dict['eliminated'] == 0:
+                race_dict['rank'] = 1
+            else:
+                race_dict['rank'] = 999
+            race_dict['car_name'] = self.car_id_to_car_name[race_dict['car_id']]['car_name']
+            race_dict['driver_name'] = self.car_id_to_car_name[race_dict['car_id']]['driver_name']
+
+        race_df = pd.DataFrame(race_dict_list)
+        race_df = race_df.sort_values(by='rank')
+        race_dict_list = race_df.to_dict('records')
+
+        race_df['eliminated'] = race_df['eliminated'].replace(0, max_rank + 1)
+        race_df = race_df.sort_values(by=['eliminated', 'win_count', 'lose_count', 'buy_back', 'odd_count'],
+                                      ascending=[False, False, True, True, True])
+        race_df['rank'] = range(1, len(race_dict_list) + 1)
+        race_dict_list = race_df.to_dict('records')
+
+        if print_results is True:
+            car_data = ''
+            driver_data = ''
+            display_format = "    | %-30s | %-30s | %-4s | %-4s | %-4s | %-4s | %-4s | %-4s | %-4s | %-4s | %-4s | %-4s |\n"
+            car_data += display_format % ('Driver Name', 'Car Name', 'Rank', 'Win', 'Lose', 'Odd', 'Race', 'Elim',
+                                          ' BB ', 'odd ', 'left', 'righ')
+            for race_dict in race_dict_list:
+                car_data += display_format % (\
+                    race_dict['driver_name'],
+                    race_dict['car_name'],
+                    str(race_dict['rank']),
+                    str(race_dict['win_count']),
+                    str(race_dict['lose_count']),
+                    str(race_dict['odd_count']),
+                    str(race_dict['in_race']),
+                    str(race_dict['eliminated']),
+                    str(race_dict['buy_back']),
+                    str(race_dict['odd_skips']),
+                    str(race_dict['track_left_count']),
+                    str(race_dict['track_right_count'])
+                )
+
+            LOGGER.info("Race Status\n  Car:\n%s\n\n", car_data)
+
+        return race_dict_list, heat_dict_list, race_df, heat_df
 
 
 def list_race():

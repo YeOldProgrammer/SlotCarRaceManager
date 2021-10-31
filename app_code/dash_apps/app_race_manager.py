@@ -33,7 +33,7 @@ START_BUTTON = BASE_ID + 'start_heat'
 DONE_BUTTON = BASE_ID + 'done_heat'
 NEXT_HEAT_BUTTON = BASE_ID + 'next_heat'
 RE_SHUFFLE_BUTTON = BASE_ID + 'shuffle'
-NEW_RACE_BUTTON = BASE_ID + 'new_race'
+# NEW_RACE_BUTTON = BASE_ID + 'new_race'
 REMAINING_PIE_CHART = BASE_ID + "race_remaining_pie_chart"
 REMAINING_TIME_CHART = BASE_ID + "time_remaining_pie_chart"
 STATS_ROW = BASE_ID + 'stats'
@@ -189,7 +189,7 @@ def gen_initial_div_data():
     inputs.append(Input(DONE_BUTTON, 'n_clicks'))
     inputs.append(Input(NEXT_HEAT_BUTTON, 'n_clicks'))
     inputs.append(Input(RE_SHUFFLE_BUTTON, 'n_clicks'))
-    inputs.append(Input(NEW_RACE_BUTTON, 'n_clicks'))
+    # inputs.append(Input(NEW_RACE_BUTTON, 'n_clicks'))
     inputs.append(Input(STATS_ROW, 'children'))
     outputs.append(Output(URL_ID, 'href'))
     outputs.append(Output(STATS_ROW, 'children'))
@@ -367,7 +367,7 @@ ala.APP_LAYOUTS[ala.APP_RACE_MANAGER] = html.Div(
                 dbc.Button('Done', id=DONE_BUTTON, style={'display': 'none'}),
                 dbc.Button('Next Heat', id=NEXT_HEAT_BUTTON, style={'display': 'none'}),
                 dbc.Button('Re-Shuffle', id=RE_SHUFFLE_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
-                dbc.Button('New Race Button', id=NEW_RACE_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
+                # dbc.Button('New Race Button', id=NEW_RACE_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
                 html.Img(src=wl.DASH_APP.get_asset_url(cd.ENV_VARS['LOGO_FILE']), style={'margin-left': '20px'}),
                 html.Div([
                     html.H4("Purse"),
@@ -453,11 +453,11 @@ def generate_graph(**kwargs):
     if ctx.triggered:
         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
         refresh = False
-        if button_id == NEW_RACE_BUTTON:
-            new_url_params_str = url_params_dict.\
-                get('url', f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/race_manager").replace('race_manager', 'race_entry')
-            LOGGER.info("Race Manager Callback (%s) - New Race Button Clicked", refresh)
-        elif button_id == URL_ID:
+        # if button_id == NEW_RACE_BUTTON:
+        #     new_url_params_str = url_params_dict.\
+        #         get('url', f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/race_manager").replace('race_manager', 'race_entry')
+        #     LOGGER.info("Race Manager Callback (%s) - New Race Button Clicked", refresh)
+        if button_id == URL_ID:
             LOGGER.info("Race Manager Callback (%s) - URL Clicked)", refresh)
             refresh = True
             updated_timer_value = 0
@@ -475,6 +475,7 @@ def generate_graph(**kwargs):
 
     abort_text = ''
     new_heat = False
+
     if 'race_id' in url_params_dict:
         if 'heat_id' not in url_params_dict:
             heat_obj = dcd.HeatDb.\
@@ -492,7 +493,8 @@ def generate_graph(**kwargs):
                 timer_enabled = False
                 refresh = True
                 url_params_dict['heat_id'] = heat_obj.heat_id
-                LOGGER.info("    Found race_id %s, heat_id %s", url_params_dict['race_id'], url_params_dict['heat_id'])
+                LOGGER.info("    Found race_id %s, heat_id %s (SHUFFLE)",
+                            url_params_dict['race_id'], url_params_dict['heat_id'])
             else:
                 url_params_dict['heat_id'] = heat_obj.heat_id
                 LOGGER.info("    Found race_id %s, heat_id %s", url_params_dict['race_id'], url_params_dict['heat_id'])
@@ -500,7 +502,8 @@ def generate_graph(**kwargs):
             if button_id == RE_SHUFFLE_BUTTON:
                 refresh = True
                 timer_enabled = False
-                LOGGER.info("    Race_id %s, heat_id %s specified - reshuffle", url_params_dict['race_id'], url_params_dict['heat_id'])
+                LOGGER.info("    Race_id %s, heat_id %s specified - reshuffle",
+                            url_params_dict['race_id'], url_params_dict['heat_id'])
                 need_build = True
                 updated_timer_value = 0
             elif button_id == NEXT_HEAT_BUTTON:
