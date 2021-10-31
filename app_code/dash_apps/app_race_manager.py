@@ -295,12 +295,6 @@ def gen_stats_row(race_data_obj=None):
         colors = ['lightgrey']
         display_text = ''
 
-    # fig = go.Figure(go.Indicator(
-    #     mode="gauge+number",
-    #     value=270,
-    #     domain={'x': [0, 1], 'y': [0, 1]},
-    #     title={'text': "Speed"}))
-
     fig = go.Figure(data=[go.Pie(labels=labels, values=values, hole=0.5,
                                  marker_colors=colors)])
     fig.update_traces(textinfo='none')
@@ -364,24 +358,26 @@ ala.APP_LAYOUTS[ala.APP_RACE_MANAGER] = html.Div(
         ),
         html.Div(
             children=[
-                html.Div(div_data),
-                dcc.Graph(id=DRIVER_GRAPH),
-                dash_table.DataTable(
-                    id=DRIVER_TABLE,
-                    data=[],
-                    columns=[],
-                    sort_action='native',
-                    sort_mode='single',
-                    style_cell={'padding': '10px'},
-                    style_header={
-                        'backgroundColor': 'rgb(30, 30, 30)',
-                        'color': 'white'
-                    },
-                    style_data={
-                        'backgroundColor': 'rgb(50, 50, 50)',
-                        'color': 'white'
-                    },
-                ),
+                dcc.Loading([
+                    html.Div(div_data),
+                    dcc.Graph(id=DRIVER_GRAPH),
+                    dash_table.DataTable(
+                        id=DRIVER_TABLE,
+                        data=[],
+                        columns=[],
+                        sort_action='native',
+                        sort_mode='single',
+                        style_cell={'padding': '10px'},
+                        style_header={
+                            'backgroundColor': 'rgb(30, 30, 30)',
+                            'color': 'white'
+                        },
+                        style_data={
+                            'backgroundColor': 'rgb(50, 50, 50)',
+                            'color': 'white'
+                        },
+                    ),
+                ])
             ],
             style={'margin-left': '60px', 'height': f"{cd.ENV_VARS['BODY_DISPLAY_HEIGHT']}px", 'overflow-y': 'scroll',
                    'overflow-x': 'hidden', 'backgroundColor': cd.ENV_VARS['BODY_DISPLAY_COLOR']}

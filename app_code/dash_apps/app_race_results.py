@@ -61,7 +61,7 @@ ala.APP_LAYOUTS[ala.APP_RACE_RESULT] = html.Div(
                     html.Div(children=[], id=DIV_DATA),
                 ], width='auto'),
                 dbc.Col(children=[
-                    html.Div(children=[
+                    dcc.Loading(children=[
                         dcc.Graph(id=RACE_GRAPH),
                         dash_table.DataTable(
                             id=RACE_TABLE,
