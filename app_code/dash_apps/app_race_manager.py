@@ -38,8 +38,8 @@ RE_SHUFFLE_BUTTON = BASE_ID + 'shuffle'
 REMAINING_PIE_CHART = BASE_ID + "race_remaining_pie_chart"
 REMAINING_TIME_CHART = BASE_ID + "time_remaining_pie_chart"
 STATS_ROW = BASE_ID + 'stats'
-DRIVER_GRAPH = BASE_ID + 'driver_graph'
-DRIVER_TABLE = BASE_ID + 'driver_table'
+# DRIVER_GRAPH = BASE_ID + 'driver_graph'
+# DRIVER_TABLE = BASE_ID + 'driver_table'
 URL_ID = BASE_ID + 'url'
 TIMER_TRIGGER = BASE_ID + 'timer_trigger'
 
@@ -203,9 +203,9 @@ def gen_initial_div_data():
     outputs.append(Output(REMAINING_PIE_CHART, 'figure'))
     outputs.append(Output(TIMER_TRIGGER, 'n_intervals'))
     outputs.append(Output(TIMER_TRIGGER, 'interval'))
-    outputs.append(Output(DRIVER_GRAPH, 'figure'))
-    outputs.append(Output(DRIVER_TABLE, 'data'))
-    outputs.append(Output(DRIVER_TABLE, 'columns'))
+    # outputs.append(Output(DRIVER_GRAPH, 'figure'))
+    # outputs.append(Output(DRIVER_TABLE, 'data'))
+    # outputs.append(Output(DRIVER_TABLE, 'columns'))
 
     for idx in range(cd.ENV_VARS['MAX_RACE_COUNT']):
         run_id = idx
@@ -305,7 +305,7 @@ def gen_stats_row(race_data_obj=None):
                       title_text=display_text,
                       title_x=0.5,
                       title_y=0.5,
-                      font = dict(color='white'),
+                      font=dict(color='white'),
                       )
 
     if heat_id == 2:
@@ -360,23 +360,23 @@ ala.APP_LAYOUTS[ala.APP_RACE_MANAGER] = html.Div(
             children=[
                 dcc.Loading([
                     html.Div(div_data),
-                    dcc.Graph(id=DRIVER_GRAPH),
-                    dash_table.DataTable(
-                        id=DRIVER_TABLE,
-                        data=[],
-                        columns=[],
-                        sort_action='native',
-                        sort_mode='single',
-                        style_cell={'padding': '10px'},
-                        style_header={
-                            'backgroundColor': 'rgb(30, 30, 30)',
-                            'color': 'white'
-                        },
-                        style_data={
-                            'backgroundColor': 'rgb(50, 50, 50)',
-                            'color': 'white'
-                        },
-                    ),
+                    # dcc.Graph(id=DRIVER_GRAPH),
+                    # dash_table.DataTable(
+                    #     id=DRIVER_TABLE,
+                    #     data=[],
+                    #     columns=[],
+                    #     sort_action='native',
+                    #     sort_mode='single',
+                    #     style_cell={'padding': '10px'},
+                    #     style_header={
+                    #         'backgroundColor': 'rgb(30, 30, 30)',
+                    #         'color': 'white'
+                    #     },
+                    #     style_data={
+                    #         'backgroundColor': 'rgb(50, 50, 50)',
+                    #         'color': 'white'
+                    #     },
+                    # ),
                 ])
             ],
             style={'margin-left': '60px', 'height': f"{cd.ENV_VARS['BODY_DISPLAY_HEIGHT']}px", 'overflow-y': 'scroll',
@@ -640,7 +640,9 @@ def generate_graph(**kwargs):
     })
 
     rv1 = [new_url_params_str, stats_data, start_style, done_style, next_heat_style, shuffle_style, graph,
-           updated_timer_value, timer_interval, driver_fig, driver_df.to_dict('records'), driver_columns]
+           updated_timer_value, timer_interval,
+           # driver_fig, driver_df.to_dict('records'), driver_columns
+           ]
 
     for run_id in range(int(cd.ENV_VARS['MAX_RACE_COUNT'])):
         if run_id >= race_data_obj.run_count:
