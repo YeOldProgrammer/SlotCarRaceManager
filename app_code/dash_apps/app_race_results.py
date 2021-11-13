@@ -36,6 +36,7 @@ DRIVER_GRAPH = BASE_ID + 'driver_graph'
 DRIVER_TABLE = BASE_ID + 'driver_table'
 RACE_GRAPH = BASE_ID + 'race_graph'
 RACE_TABLE = BASE_ID + 'race_table'
+REPORT_TABLE = BASE_ID + 'report_table'
 
 
 ala.APP_LAYOUTS[ala.APP_RACE_RESULT] = html.Div(
@@ -80,7 +81,24 @@ ala.APP_LAYOUTS[ala.APP_RACE_RESULT] = html.Div(
                                 'color': 'white'
                             },
                         ),
-                        dcc.Graph(id=DRIVER_GRAPH),
+                        html.H4("Wins and Losses", style={'margin-top': '20px'}),
+                        dash_table.DataTable(
+                            id=REPORT_TABLE,
+                            data=[],
+                            columns=[],
+                            sort_action='native',
+                            sort_mode='single',
+                            style_cell={'padding': '10px'},
+                            style_header={
+                                'backgroundColor': 'rgb(30, 30, 30)',
+                                'color': 'white'
+                            },
+                            style_data={
+                                'backgroundColor': 'rgb(50, 50, 50)',
+                                'color': 'white'
+                            },
+                        ),
+                        dcc.Graph(id=DRIVER_GRAPH, style={'margin-top': '20px'}),
                         dash_table.DataTable(
                             id=DRIVER_TABLE,
                             data=[],
@@ -143,6 +161,8 @@ def parse_url_params_str(url_params_str):
     Output(DRIVER_TABLE, 'columns'),
     Output(NEW_RACE_BUTTON, 'style'),
     Output(REFRESH_BUTTON, 'style'),
+    Output(REPORT_TABLE, 'data'),
+    Output(REPORT_TABLE, 'columns'),
     [
         Input(NEW_RACE_BUTTON, "n_clicks"),
         Input(REFRESH_BUTTON, "n_clicks"),
@@ -192,9 +212,10 @@ def generate_graph(new_race_button, refresh_button, orig_url_params_str):
         if button_id == NEW_RACE_BUTTON:
             new_url_params_str = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/race_entry"
             return dash.no_update, dash.no_update, new_url_params_str, dash.no_update, dash.no_update, [], [], [], [],\
-                   dash.no_update, dash.no_update
+                   dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
-    race_dict_list, heat_dict_list, race_df, heat_df, driver_df = race_data_obj.get_race_results(print_results=True)
+    race_dict_list, heat_dict_list, race_df, heat_df, driver_df, report_df, max_heat = \
+        race_data_obj.get_race_results(print_results=True)
     save_report_data(race_data_obj, race_dict_list, heat_dict_list)
 
     div_data = []
@@ -235,6 +256,7 @@ def generate_graph(new_race_button, refresh_button, orig_url_params_str):
         {'name': 'Car Name', 'id': 'car_name'},
         {'name': 'Rank', 'id': 'rank'},
         {'name': 'Wins', 'id': 'win_count'},
+        {'name': 'Losses', 'id': 'lose_count'},
         {'name': 'Skips', 'id': 'odd_skips'},
         {'name': 'Buy Backs', 'id': 'buy_back'},
         {'name': 'Heat Reached', 'id': 'eliminated'},
@@ -250,10 +272,18 @@ def generate_graph(new_race_button, refresh_button, orig_url_params_str):
         {'name': 'Buy Backs', 'id': 'buy_back'},
     ]
 
+    report_columns = [
+        {'name': 'Driver Name', 'id': 'driver_name'},
+        {'name': 'Car Name', 'id': 'car_name'},
+    ]
+    for heat_id in range(1, max_heat + 1):
+        report_columns.append({'name': 'Heat %d' % heat_id, 'id': str(heat_id)})
+
     return div_data, div_data_style, dash.no_update, race_fig, driver_fig, \
            race_df.to_dict('records'), race_columns, \
            driver_df.to_dict('records'), driver_columns, \
-           new_race_style, refresh_style
+           new_race_style, refresh_style, \
+           report_df.to_dict('records'), report_columns
 
 
 def save_report_data(race_data_obj, race_dict_list, heat_dict_list):

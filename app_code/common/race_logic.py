@@ -625,10 +625,13 @@ class RaceData:
                               dbd.get_db_engine(dbd.APP_DB))
         heat_dict_list = heat_df.to_dict('records')
         drivers = {}
+        report_dict = {}
+        max_heat = 0
         for heat_dict in heat_dict_list:
             winner_id = -1
             loser_id = -1
             odd_id = -1
+            max_heat = max(max_heat, heat_dict['heat_id'])
             if heat_dict['odd'] == 1:
                 odd_id = heat_dict['car_id_left']
             else:
@@ -642,16 +645,27 @@ class RaceData:
             for race_dict in race_dict_list:
                 race_dict['car_name'] = self.car_id_to_car_name[race_dict['car_id']]['car_name']
                 race_dict['driver_name'] = self.car_id_to_car_name[race_dict['car_id']]['driver_name']
+
+                if race_dict['car_name'] not in report_dict:
+                    report_dict[race_dict['car_name']] = {
+                        'driver_name': race_dict['driver_name'],
+                        'car_name': race_dict['car_name'],
+                    }
+
                 drivers[race_dict['driver_name']] = {'car_count': 0, 'win_count': 0, 'lose_count': 0, 'odd_count': 0,
                                                      'buy_back': 0, 'max_heat': 0, 'track_left_count': 0,
                                                      'track_right_count': 0
                                                      }
                 if race_dict['car_id'] == winner_id:
                     race_dict['win_count'] = race_dict.get('win_count', 0) + 1
+                    report_dict[race_dict['car_name']][str(heat_dict['heat_id'])] = \
+                        self.car_id_to_car_name[loser_id]['car_name']
                 if race_dict['car_id'] == loser_id:
                     race_dict['lose_count'] = race_dict.get('lose_count', 0) + 1
+                    report_dict[race_dict['car_name']][str(heat_dict['heat_id'])] = 'Loss'
                 if race_dict['car_id'] == odd_id:
                     race_dict['odd_count'] = race_dict.get('odd_count', 0) + 1
+                    report_dict[race_dict['car_name']][str(heat_dict['heat_id'])] = 'Odd'
 
         max_rank = 0
         for race_dict in race_dict_list:
@@ -702,6 +716,18 @@ class RaceData:
         race_df['rank'] = range(1, len(race_dict_list) + 1)
         race_dict_list = race_df.to_dict('records')
 
+        report_dict_list = []
+        for car in report_dict:
+            for heat_id in range(1, max_heat + 1):
+                if str(heat_id) not in report_dict[car]:
+                    if heat_id == 2:
+                        report_dict[car][str(heat_id)] = 'Skip'
+                    else:
+                        report_dict[car][str(heat_id)] = ''
+
+            report_dict_list.append(report_dict[car])
+        report_df = pd.DataFrame(report_dict_list)
+
         if print_results is True:
             car_data = ''
             display_format = "    | %-30s | %-30s | %-4s | %-4s | %-4s | %-4s | %-4s | %-4s | %-4s | %-4s | %-4s | %-4s | %-4s |\n"
@@ -726,7 +752,7 @@ class RaceData:
 
             LOGGER.info("Race Status\n  Car:\n%s\n\n", car_data)
 
-        return race_dict_list, heat_dict_list, race_df, heat_df, driver_df
+        return race_dict_list, heat_dict_list, race_df, heat_df, driver_df, report_df, max_heat
 
 
 def list_race():

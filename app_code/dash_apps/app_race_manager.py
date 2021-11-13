@@ -648,7 +648,8 @@ def generate_graph(**kwargs):
         {'name': 'Buy Backs', 'id': 'buy_back'},
     ]
 
-    race_dict_list, heat_dict_list, race_df, heat_df, driver_df = race_data_obj.get_race_results(print_results=False)
+    race_dict_list, heat_dict_list, race_df, heat_df, driver_df, report_df, max_heat = \
+        race_data_obj.get_race_results(print_results=False)
     driver_fig = px.bar(driver_df.sort_values(by='win_count'), x='win_count', y='driver_name')
     driver_fig.update_layout({
         'font_color': 'white',

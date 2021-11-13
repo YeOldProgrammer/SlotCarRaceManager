@@ -7,7 +7,7 @@ import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 import app_code.common.db_data as dbd
 import dash_html_components as html
-from sqlalchemy import func
+from sqlalchemy import func, case
 from dash.exceptions import PreventUpdate
 from dash.dependencies import Input, Output, State
 import app_code.common.web_logic as wl
@@ -126,6 +126,9 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
                     id=CAR_AVAILABLE_TABLE,
                     columns=[
                         {'name': 'Car', 'id': 'car_name', 'type': 'text'},
+                        {'name': 'Races', 'id': 'races', 'type': 'int'},
+                        {'name': 'Wins', 'id': 'wins', 'type': 'int'},
+                        {'name': 'Losses', 'id': 'losses', 'type': 'int'},
                     ],
                     data=None,
                     selected_rows=[],
@@ -267,8 +270,75 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
         car_obj_list = dcd.CarDb.query.filter_by(driver_id=driver_id).all()
 
         for car_obj in car_obj_list:
-            car_list.append({'car_name': car_obj.car_name})
             car_mapping[car_obj.car_name] = car_obj.id
+            race_obj_list = dcd.RaceDb.query.filter_by(car_id=car_obj.id).all()
+            race_sum_list = dcd.RaceDb.query.add_columns(dcd.RaceDb.car_id,
+                                                         func.count(dcd.RaceDb.race_id),
+                                                         func.count(dcd.RaceDb.eliminated),
+                                                         func.count(case([(dcd.RaceDb.eliminated != 0, 1)])),
+                                                         func.sum(dcd.RaceDb.track_left_count),
+                                                         func.sum(dcd.RaceDb.track_right_count),
+                                                         func.sum(dcd.RaceDb.odd_skips),
+                                                         func.count(case([(dcd.RaceDb.buy_back, 1)])),
+                                                         ).filter_by(
+                car_id=car_obj.id).all()
+
+            heat_left_sum_list = dcd.HeatDb.query.add_columns(dcd.HeatDb.car_id_left,
+                                                              func.count(dcd.HeatDb.win_id),
+                                                              func.count(case([(dcd.HeatDb.win_id == 1, 1)])),
+                                                              func.count(case([(dcd.HeatDb.odd, 1)]))).filter_by(
+                car_id_left=car_obj.id).all()
+            heat_right_sum_list = dcd.HeatDb.query.add_columns(dcd.HeatDb.car_id_right,
+                                                               func.count(dcd.HeatDb.win_id),
+                                                               func.count(case([(dcd.HeatDb.win_id == 2, 1)])),
+                                                               func.count(case([(dcd.HeatDb.odd, 1)]))).filter_by(
+                car_id_right=car_obj.id).all()
+
+            race_sum_data = []
+            for idx in range(2, 8 + 1):
+                if race_sum_list[0][idx] is None:
+                    race_sum_data.append(0)
+                else:
+                    race_sum_data.append(race_sum_list[0][idx])
+
+            data = {
+                'race_sum_list': {
+                    'races': race_sum_data[0],
+                    'eliminated': race_sum_data[2],
+                    'track_left_count': race_sum_data[3],
+                    'track_right_count': race_sum_data[4],
+                    'odd_skips': race_sum_data[5],
+                    'buy_back': race_sum_data[6],
+                    'wins': race_sum_data[3] + race_sum_data[4],
+                    'losses': race_sum_data[2] + race_sum_data[6],
+                },
+                'total': {
+                    'count': heat_left_sum_list[0][2] + heat_right_sum_list[0][2],
+                    'win_count': heat_left_sum_list[0][3] + heat_right_sum_list[0][3] - heat_left_sum_list[0][4],
+                    'loss_count': (heat_left_sum_list[0][2] + heat_right_sum_list[0][2]) - (heat_left_sum_list[0][3] + heat_right_sum_list[0][3]),
+                    'odd': heat_left_sum_list[0][4] + heat_right_sum_list[0][4],
+                },
+                'heat_left': {
+                    'count': heat_left_sum_list[0][2],
+                    'win_count': heat_left_sum_list[0][3] - heat_left_sum_list[0][4],
+                    'loss_count': heat_left_sum_list[0][2] - heat_left_sum_list[0][3],
+                    'odd': heat_left_sum_list[0][4],
+                },
+                'heat_right': {
+                    'count': heat_right_sum_list[0][2],
+                    'win_count': heat_right_sum_list[0][3] - heat_right_sum_list[0][4],
+                    'loss_count': heat_right_sum_list[0][2] - heat_right_sum_list[0][3],
+                    'odd': heat_right_sum_list[0][4],
+                },
+            }
+            car_list.append({
+                'car_name': car_obj.car_name,
+                'races': race_sum_data[0],
+                'wins': race_sum_data[3] + race_sum_data[4],
+                'losses': race_sum_data[2] + race_sum_data[6],
+            })
+
+            a = 1
 
     if not ctx.triggered:
         LOGGER.debug("Race Entry Callback - not triggered - Callback time:%0.02f", time.time() - cb_start_time)

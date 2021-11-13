@@ -255,7 +255,7 @@ def generate_graph(**kwargs):
                 # dcd.RaceDb.query.filter_by(car_id=race_obj.car_id).update({'in_race': False})
                 continue
 
-            dcd.RaceDb.query.filter_by(car_id=race_obj.car_id).update(
+            dcd.RaceDb.query.filter_by(race_id=race_id, car_id=race_obj.car_id).update(
                 {
                     'buy_back': True,
                     'in_race': True,
