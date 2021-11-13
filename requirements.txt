@@ -12,6 +12,7 @@ dash-bootstrap-components==0.12.2
 pylint==2.8.2
 click==7.1.2
 flask_sqlalchemy==2.5.1
+visdcc==0.0.40
 
 pandas==1.1.5
 lxml==4.6.3

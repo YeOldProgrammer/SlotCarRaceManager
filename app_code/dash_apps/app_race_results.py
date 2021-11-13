@@ -29,6 +29,7 @@ inputs = []
 outputs = []
 BASE_ID = 'arr_'
 NEW_RACE_BUTTON = BASE_ID + 'new_race'
+REFRESH_BUTTON = BASE_ID + 'refresh'
 DIV_DATA = BASE_ID + '_div_data'
 URL_ID = BASE_ID + 'url'
 DRIVER_GRAPH = BASE_ID + 'driver_graph'
@@ -105,6 +106,7 @@ ala.APP_LAYOUTS[ala.APP_RACE_RESULT] = html.Div(
         html.Div(
             children=[
                 dbc.Button('New Race', id=NEW_RACE_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
+                dbc.Button('Refresh', id=REFRESH_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
             ],
             style={'height': '100px'}
             # style={'height': '100px', 'backgroundColor': 'red'}
@@ -131,6 +133,7 @@ def parse_url_params_str(url_params_str):
 
 @wl.DASH_APP.callback(
     Output(DIV_DATA, 'children'),
+    Output(DIV_DATA, 'style'),
     Output(URL_ID, 'href'),
     Output(RACE_GRAPH, 'figure'),
     Output(DRIVER_GRAPH, 'figure'),
@@ -138,13 +141,16 @@ def parse_url_params_str(url_params_str):
     Output(RACE_TABLE, 'columns'),
     Output(DRIVER_TABLE, 'data'),
     Output(DRIVER_TABLE, 'columns'),
+    Output(NEW_RACE_BUTTON, 'style'),
+    Output(REFRESH_BUTTON, 'style'),
     [
         Input(NEW_RACE_BUTTON, "n_clicks"),
+        Input(REFRESH_BUTTON, "n_clicks"),
         Input(URL_ID, "href"),
     ],
 
 )
-def generate_graph(new_race_button, orig_url_params_str):
+def generate_graph(new_race_button, refresh_button, orig_url_params_str):
     cb_start_time = time.time()
     ctx = dash.callback_context
 
@@ -156,6 +162,20 @@ def generate_graph(new_race_button, orig_url_params_str):
         LOGGER.info("Buy Back - Race_id was not specified")
         new_url_params_str = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/race_entry"
         raise PreventUpdate
+
+    final = False
+    if 'final' in url_params_dict:
+        if url_params_dict['final'] == '1':
+            final = True
+
+    if final is True:
+        div_data_style = {'margin-left': '0px', 'margin-top': '0px'}
+        refresh_style = {'display': 'none'}
+        new_race_style = {'margin-left': '0px', 'margin-top': '0px'}
+    else:
+        div_data_style = {'display': 'none'}
+        refresh_style = {'margin-left': '0px', 'margin-top': '0px'}
+        new_race_style = {'display': 'none'}
 
     race_id = int(url_params_dict['race_id'])
     new_url_params_str = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/buy_back?race_id=%d" % race_id
@@ -171,7 +191,8 @@ def generate_graph(new_race_button, orig_url_params_str):
         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
         if button_id == NEW_RACE_BUTTON:
             new_url_params_str = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/race_entry"
-            return dash.no_update, new_url_params_str, dash.no_update, dash.no_update, [], [], [], []
+            return dash.no_update, dash.no_update, new_url_params_str, dash.no_update, dash.no_update, [], [], [], [],\
+                   dash.no_update, dash.no_update
 
     race_dict_list, heat_dict_list, race_df, heat_df, driver_df = race_data_obj.get_race_results(print_results=True)
     save_report_data(race_data_obj, race_dict_list, heat_dict_list)
@@ -214,6 +235,8 @@ def generate_graph(new_race_button, orig_url_params_str):
         {'name': 'Car Name', 'id': 'car_name'},
         {'name': 'Rank', 'id': 'rank'},
         {'name': 'Wins', 'id': 'win_count'},
+        {'name': 'Skips', 'id': 'odd_skips'},
+        {'name': 'Buy Backs', 'id': 'buy_back'},
         {'name': 'Heat Reached', 'id': 'eliminated'},
     ]
 
@@ -227,9 +250,10 @@ def generate_graph(new_race_button, orig_url_params_str):
         {'name': 'Buy Backs', 'id': 'buy_back'},
     ]
 
-    return div_data, dash.no_update, race_fig, driver_fig, \
+    return div_data, div_data_style, dash.no_update, race_fig, driver_fig, \
            race_df.to_dict('records'), race_columns, \
-           driver_df.to_dict('records'), driver_columns
+           driver_df.to_dict('records'), driver_columns, \
+           new_race_style, refresh_style
 
 
 def save_report_data(race_data_obj, race_dict_list, heat_dict_list):

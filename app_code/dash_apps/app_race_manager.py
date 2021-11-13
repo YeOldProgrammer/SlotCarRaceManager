@@ -8,6 +8,7 @@ import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 import dash_html_components as html
 from sqlalchemy import func
+import visdcc
 from dash.exceptions import PreventUpdate
 import plotly.express as px
 import plotly.graph_objects as go
@@ -31,6 +32,7 @@ CLICK_LEFT = 'left_check'
 CLICK_RIGHT = 'right_check'
 HEAT_SLIDER = BASE_ID + 'slider'
 START_BUTTON = BASE_ID + 'start_heat'
+STATS_BUTTON = BASE_ID + 'stats_button'
 DONE_BUTTON = BASE_ID + 'done_heat'
 NEXT_HEAT_BUTTON = BASE_ID + 'next_heat'
 RE_SHUFFLE_BUTTON = BASE_ID + 'shuffle'
@@ -38,6 +40,7 @@ RE_SHUFFLE_BUTTON = BASE_ID + 'shuffle'
 REMAINING_PIE_CHART = BASE_ID + "race_remaining_pie_chart"
 REMAINING_TIME_CHART = BASE_ID + "time_remaining_pie_chart"
 STATS_ROW = BASE_ID + 'stats'
+STATS_JAVASCRIPT = BASE_ID + 'javascript'
 # DRIVER_GRAPH = BASE_ID + 'driver_graph'
 # DRIVER_TABLE = BASE_ID + 'driver_table'
 URL_ID = BASE_ID + 'url'
@@ -193,6 +196,7 @@ def gen_initial_div_data():
     inputs.append(Input(NEXT_HEAT_BUTTON, 'n_clicks'))
     inputs.append(Input(RE_SHUFFLE_BUTTON, 'n_clicks'))
     # inputs.append(Input(NEW_RACE_BUTTON, 'n_clicks'))
+    inputs.append(Input(STATS_BUTTON, 'n_clicks'))
     inputs.append(Input(STATS_ROW, 'children'))
     outputs.append(Output(URL_ID, 'href'))
     outputs.append(Output(STATS_ROW, 'children'))
@@ -200,9 +204,11 @@ def gen_initial_div_data():
     outputs.append(Output(DONE_BUTTON, 'style'))
     outputs.append(Output(NEXT_HEAT_BUTTON, 'style'))
     outputs.append(Output(RE_SHUFFLE_BUTTON, 'style'))
+    outputs.append(Output(STATS_JAVASCRIPT, 'run'))
     outputs.append(Output(REMAINING_PIE_CHART, 'figure'))
     outputs.append(Output(TIMER_TRIGGER, 'n_intervals'))
     outputs.append(Output(TIMER_TRIGGER, 'interval'))
+
     # outputs.append(Output(DRIVER_GRAPH, 'figure'))
     # outputs.append(Output(DRIVER_TABLE, 'data'))
     # outputs.append(Output(DRIVER_TABLE, 'columns'))
@@ -384,12 +390,14 @@ ala.APP_LAYOUTS[ala.APP_RACE_MANAGER] = html.Div(
         ),
         html.Div(
             [
+                visdcc.Run_js(id=STATS_JAVASCRIPT),
                 dbc.Button('Start', id=START_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
                 dbc.Button('Done', id=DONE_BUTTON, style={'display': 'none'}),
                 dbc.Button('Next Heat', id=NEXT_HEAT_BUTTON, style={'display': 'none'}),
                 dbc.Button('Re-Shuffle', id=RE_SHUFFLE_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
-                # dbc.Button('New Race Button', id=NEW_RACE_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
+                dbc.Button('Stats', id=STATS_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
                 html.Img(src=wl.DASH_APP.get_asset_url(cd.ENV_VARS['LOGO_FILE']), style={'margin-left': '20px'}),
+                # dbc.Button('New Race Button', id=NEW_RACE_BUTTON, style={'margin-left': '20px', 'margin-top': '20px'}),
                 # html.Div([
                 #     html.H4("Purse"),
                 #     html.Hr(),
@@ -554,14 +562,26 @@ def generate_graph(**kwargs):
                 race_data_obj.load_cars(race_id=url_params_dict['race_id'], heat_id=url_params_dict['heat_id'])
                 abort_text = race_data_obj.next_heat()
                 if abort_text == '':
-                    new_url_params_str = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/race_results?race_id=%s" % \
+                    new_url_params_str = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/race_results?race_id=%s&final=1" % \
                                          url_params_dict['race_id']
 
             elif button_id == START_BUTTON:
                 timer_enabled = True
                 updated_timer_value = 0
+
+            elif button_id == STATS_BUTTON:
+                rv0 = []
+                for rule in outputs:
+                    rv0.append(dash.no_update)
+                url = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/race_results?race_id=%s&final=0" % url_params_dict['race_id']
+                rv0[6] = f'window.open("{url}", "_blank")'
+                LOGGER.info("    Race_id %s heat_id %s gather stats",
+                            url_params_dict['race_id'], url_params_dict['heat_id'])
+                return rv0
+
             else:
-                LOGGER.info("    Race_id %s, heat_id %s specified", url_params_dict['race_id'], url_params_dict['heat_id'])
+                LOGGER.info("    Race_id %s, heat_id %s specified",
+                            url_params_dict['race_id'], url_params_dict['heat_id'])
 
         race_data_obj.load_cars(race_id=url_params_dict['race_id'], heat_id=url_params_dict['heat_id'])
 
@@ -639,8 +659,8 @@ def generate_graph(**kwargs):
         'title': 'Driver Results'
     })
 
-    rv1 = [new_url_params_str, stats_data, start_style, done_style, next_heat_style, shuffle_style, graph,
-           updated_timer_value, timer_interval,
+    rv1 = [new_url_params_str, stats_data, start_style, done_style, next_heat_style, shuffle_style, dash.no_update,
+           graph, updated_timer_value, timer_interval
            # driver_fig, driver_df.to_dict('records'), driver_columns
            ]
 
