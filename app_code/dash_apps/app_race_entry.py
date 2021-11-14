@@ -127,8 +127,8 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
                     columns=[
                         {'name': 'Car', 'id': 'car_name', 'type': 'text'},
                         {'name': 'Races', 'id': 'races', 'type': 'int'},
-                        {'name': 'Wins', 'id': 'wins', 'type': 'int'},
-                        {'name': 'Losses', 'id': 'losses', 'type': 'int'},
+                        {'name': 'Heat Wins', 'id': 'heat_wins', 'type': 'int'},
+                        {'name': 'Heat Losses', 'id': 'heat_losses', 'type': 'int'},
                     ],
                     data=None,
                     selected_rows=[],
@@ -280,6 +280,7 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
                                                          func.sum(dcd.RaceDb.track_right_count),
                                                          func.sum(dcd.RaceDb.odd_skips),
                                                          func.count(case([(dcd.RaceDb.buy_back, 1)])),
+                                                         func.count(case([(dcd.RaceDb.eliminated == 0, 1)])),
                                                          ).filter_by(
                 car_id=car_obj.id).all()
 
@@ -295,7 +296,7 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
                 car_id_right=car_obj.id).all()
 
             race_sum_data = []
-            for idx in range(2, 8 + 1):
+            for idx in range(2, 9 + 1):
                 if race_sum_list[0][idx] is None:
                     race_sum_data.append(0)
                 else:
@@ -309,8 +310,9 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
                     'track_right_count': race_sum_data[4],
                     'odd_skips': race_sum_data[5],
                     'buy_back': race_sum_data[6],
-                    'wins': race_sum_data[3] + race_sum_data[4],
-                    'losses': race_sum_data[2] + race_sum_data[6],
+                    'heat_wins': race_sum_data[3] + race_sum_data[4],
+                    'heat_losses': race_sum_data[2] + race_sum_data[6],
+                    'race_wins': race_sum_data[7],
                 },
                 'total': {
                     'count': heat_left_sum_list[0][2] + heat_right_sum_list[0][2],
@@ -331,11 +333,13 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
                     'odd': heat_right_sum_list[0][4],
                 },
             }
+
             car_list.append({
                 'car_name': car_obj.car_name,
                 'races': race_sum_data[0],
-                'wins': race_sum_data[3] + race_sum_data[4],
-                'losses': race_sum_data[2] + race_sum_data[6],
+                'race_wins': race_sum_data[7],
+                'heat_wins': race_sum_data[3] + race_sum_data[4],
+                'heat_losses': race_sum_data[2] + race_sum_data[6],
             })
 
             a = 1
