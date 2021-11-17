@@ -126,9 +126,9 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
                     id=CAR_AVAILABLE_TABLE,
                     columns=[
                         {'name': 'Car', 'id': 'car_name', 'type': 'text'},
-                        {'name': 'Races', 'id': 'races', 'type': 'int'},
-                        {'name': 'Heat Wins', 'id': 'heat_wins', 'type': 'int'},
-                        {'name': 'Heat Losses', 'id': 'heat_losses', 'type': 'int'},
+                        # {'name': 'Races', 'id': 'races', 'type': 'int'},
+                        # {'name': 'Heat Wins', 'id': 'heat_wins', 'type': 'int'},
+                        # {'name': 'Heat Losses', 'id': 'heat_losses', 'type': 'int'},
                     ],
                     data=None,
                     selected_rows=[],
