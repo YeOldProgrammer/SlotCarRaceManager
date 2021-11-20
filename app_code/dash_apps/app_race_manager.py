@@ -640,7 +640,7 @@ def generate_graph(**kwargs):
 
     driver_columns = [
         {'name': 'Driver Name', 'id': 'driver_name'},
-        {'name': 'Cars', 'id': 'car_count'},
+        {'name': 'Cars', 'id': 'starting_car_count'},
         {'name': 'Wins', 'id': 'win_count'},
         {'name': 'Losses', 'id': 'lose_count'},
         {'name': 'Heat Reached', 'id': 'max_heat'},

@@ -655,7 +655,8 @@ class RaceData:
 
                 driver_name = race_dict['driver_name']
                 if driver_name not in drivers:
-                    drivers[driver_name] = {'car_count': 0, 'win_count': 0, 'lose_count': 0, 'odd_count': 0,
+                    drivers[driver_name] = {'starting_car_count': 0, 'current_car_count': 0,
+                                            'win_count': 0, 'lose_count': 0, 'odd_count': 0,
                                             'buy_back': 0, 'max_heat': 0, 'track_left_count': 0,
                                             'track_right_count': 0
                                             }
@@ -689,7 +690,7 @@ class RaceData:
                 race_dict['rank'] = 999
 
             driver_name = race_dict['driver_name']
-            drivers[driver_name]['car_count'] += 1
+            drivers[driver_name]['starting_car_count'] += 1
             drivers[driver_name]['win_count'] += race_dict['win_count']
             drivers[driver_name]['lose_count'] += race_dict['lose_count']
             drivers[driver_name]['odd_count'] += race_dict['odd_count']
@@ -699,11 +700,14 @@ class RaceData:
             if race_dict['eliminated'] > drivers[driver_name]['max_heat']:
                 drivers[driver_name]['max_heat'] = race_dict['eliminated']
 
+            if race_dict['in_race'] == 1:
+                drivers[driver_name]['current_car_count'] += 1
+
         driver_dict_list = []
         for driver_name in drivers:
             drivers[driver_name]['driver_name'] = driver_name
             drivers[driver_name]['per_car_win_ratio'] = drivers[driver_name]['win_count'] /\
-                                                        drivers[driver_name]['car_count']
+                                                        drivers[driver_name]['starting_car_count']
             for race_dict in race_dict_list:
                 race_dict['win_ratio'] = drivers[driver_name]['per_car_win_ratio']
 

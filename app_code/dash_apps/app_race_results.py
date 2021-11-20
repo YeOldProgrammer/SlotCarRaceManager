@@ -262,11 +262,16 @@ def generate_graph(new_race_button, refresh_button, orig_url_params_str):
         {'name': 'Heat Reached', 'id': 'eliminated'},
     ]
 
+    display_heat = max_heat - 1
+    if display_heat == 0:
+        display_heat = 1
+
     driver_columns = [
         {'name': ['Driver Name'], 'id': 'driver_name'},
-        {'name': ['Cars'], 'id': 'car_count'},
-        {'name': ['Heat %d Wins' % max_heat], 'id': 'heat_win_%d' % max_heat},
-        {'name': ['Heat %d Losses' % max_heat], 'id': 'heat_loss_%d' % max_heat},
+        {'name': ['Starting Cars'], 'id': 'starting_car_count'},
+        {'name': ['Current Cars'], 'id': 'current_car_count'},
+        {'name': ['Heat %d Wins' % display_heat], 'id': 'heat_win_%d' % display_heat},
+        {'name': ['Heat %d Losses' % display_heat], 'id': 'heat_loss_%d' % display_heat},
         {'name': ['Total Wins'], 'id': 'win_count'},
         {'name': ['Total Losses'], 'id': 'lose_count'},
         {'name': ['Heat Reached'], 'id': 'max_heat'},
