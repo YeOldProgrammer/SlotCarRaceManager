@@ -64,26 +64,8 @@ ala.APP_LAYOUTS[ala.APP_RACE_RESULT] = html.Div(
                 ], width='auto'),
                 dbc.Col(children=[
                     dcc.Loading(children=[
-                        dcc.Graph(id=RACE_GRAPH),
                         dash_table.DataTable(
-                            id=RACE_TABLE,
-                            data=[],
-                            columns=[],
-                            sort_action='native',
-                            sort_mode='single',
-                            style_cell={'padding': '10px'},
-                            style_header={
-                                'backgroundColor': 'rgb(30, 30, 30)',
-                                'color': 'white'
-                            },
-                            style_data={
-                                'backgroundColor': 'rgb(50, 50, 50)',
-                                'color': 'white'
-                            },
-                        ),
-                        html.H4("Wins and Losses", style={'margin-top': '20px'}),
-                        dash_table.DataTable(
-                            id=REPORT_TABLE,
+                            id=DRIVER_TABLE,
                             data=[],
                             columns=[],
                             sort_action='native',
@@ -100,7 +82,25 @@ ala.APP_LAYOUTS[ala.APP_RACE_RESULT] = html.Div(
                         ),
                         dcc.Graph(id=DRIVER_GRAPH, style={'margin-top': '20px'}),
                         dash_table.DataTable(
-                            id=DRIVER_TABLE,
+                            id=RACE_TABLE,
+                            data=[],
+                            columns=[],
+                            sort_action='native',
+                            sort_mode='single',
+                            style_cell={'padding': '10px'},
+                            style_header={
+                                'backgroundColor': 'rgb(30, 30, 30)',
+                                'color': 'white'
+                            },
+                            style_data={
+                                'backgroundColor': 'rgb(50, 50, 50)',
+                                'color': 'white'
+                            },
+                        ),
+                        dcc.Graph(id=RACE_GRAPH),
+                        html.H4("Wins and Losses", style={'margin-top': '20px'}),
+                        dash_table.DataTable(
+                            id=REPORT_TABLE,
                             data=[],
                             columns=[],
                             sort_action='native',
@@ -263,13 +263,15 @@ def generate_graph(new_race_button, refresh_button, orig_url_params_str):
     ]
 
     driver_columns = [
-        {'name': 'Driver Name', 'id': 'driver_name'},
-        {'name': 'Cars', 'id': 'car_count'},
-        {'name': 'Wins', 'id': 'win_count'},
-        {'name': 'Loses', 'id': 'lose_count'},
-        {'name': 'Heat Reached', 'id': 'max_heat'},
-        {'name': 'Odd Cars', 'id': 'odd_count'},
-        {'name': 'Buy Backs', 'id': 'buy_back'},
+        {'name': ['Driver Name'], 'id': 'driver_name'},
+        {'name': ['Cars'], 'id': 'car_count'},
+        {'name': ['Heat %d Wins' % max_heat], 'id': 'heat_win_%d' % max_heat},
+        {'name': ['Heat %d Losses' % max_heat], 'id': 'heat_loss_%d' % max_heat},
+        {'name': ['Total Wins'], 'id': 'win_count'},
+        {'name': ['Total Losses'], 'id': 'lose_count'},
+        {'name': ['Heat Reached'], 'id': 'max_heat'},
+        {'name': ['Odd Cars'], 'id': 'odd_count'},
+        {'name': ['Buy Backs'], 'id': 'buy_back'},
     ]
 
     report_columns = [

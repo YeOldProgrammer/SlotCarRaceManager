@@ -631,7 +631,8 @@ class RaceData:
             winner_id = -1
             loser_id = -1
             odd_id = -1
-            max_heat = max(max_heat, heat_dict['heat_id'])
+            heat_id = heat_dict['heat_id']
+            max_heat = max(max_heat, heat_id)
             if heat_dict['odd'] == 1:
                 odd_id = heat_dict['car_id_left']
             else:
@@ -652,17 +653,23 @@ class RaceData:
                         'car_name': race_dict['car_name'],
                     }
 
-                drivers[race_dict['driver_name']] = {'car_count': 0, 'win_count': 0, 'lose_count': 0, 'odd_count': 0,
-                                                     'buy_back': 0, 'max_heat': 0, 'track_left_count': 0,
-                                                     'track_right_count': 0
-                                                     }
+                driver_name = race_dict['driver_name']
+                if driver_name not in drivers:
+                    drivers[driver_name] = {'car_count': 0, 'win_count': 0, 'lose_count': 0, 'odd_count': 0,
+                                            'buy_back': 0, 'max_heat': 0, 'track_left_count': 0,
+                                            'track_right_count': 0
+                                            }
+
                 if race_dict['car_id'] == winner_id:
                     race_dict['win_count'] = race_dict.get('win_count', 0) + 1
-                    report_dict[race_dict['car_name']][str(heat_dict['heat_id'])] = \
-                        self.car_id_to_car_name[loser_id]['car_name']
+                    report_dict[race_dict['car_name']][str(heat_id)] = self.car_id_to_car_name[loser_id]['car_name']
+                    key = 'heat_win_' + str(heat_id)
+                    drivers[driver_name][key] = drivers[driver_name].get(key, 0) + 1
                 if race_dict['car_id'] == loser_id:
                     race_dict['lose_count'] = race_dict.get('lose_count', 0) + 1
                     report_dict[race_dict['car_name']][str(heat_dict['heat_id'])] = 'Loss'
+                    key = 'heat_loss_' + str(heat_dict['heat_id'])
+                    drivers[driver_name][key] = drivers[driver_name].get(key, 0) + 1
                 if race_dict['car_id'] == odd_id:
                     race_dict['odd_count'] = race_dict.get('odd_count', 0) + 1
                     report_dict[race_dict['car_name']][str(heat_dict['heat_id'])] = 'Odd'
