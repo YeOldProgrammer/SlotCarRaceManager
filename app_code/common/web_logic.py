@@ -22,7 +22,7 @@ def init_flask():
 def init_dash(flask_app):
     dash_app = dash.Dash('dash_app', server=flask_app, suppress_callback_exceptions=False,
                          external_stylesheets=EXTERNAL_STYLE_SHEETS)
-    dash_app.title = 'Application Title'
+    dash_app.title = 'Race Entry'
     dash_app.layout = html.Div([
         dcc.Location(id='url', refresh=False),
         html.Div(id='page-content')

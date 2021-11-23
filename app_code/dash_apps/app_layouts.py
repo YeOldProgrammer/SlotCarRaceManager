@@ -21,10 +21,31 @@ for APP in APP_LIST:
                       [Input('url', 'pathname')])
 def display_page(pathname):
     if pathname == '/race_manager':
+        wl.DASH_APP.title = "Race Manager"
         return APP_LAYOUTS[APP_RACE_MANAGER]
     elif pathname == '/buy_back':
+        wl.DASH_APP.title = "Race Manager"
         return APP_LAYOUTS[APP_BUY_BACK]
     elif pathname == '/race_results':
+        wl.DASH_APP.title = "Race Results"
         return APP_LAYOUTS[APP_RACE_RESULT]
 
     return APP_LAYOUTS[APP_RACE_ENTRY]
+
+
+@wl.FLASK_APP.route("/")
+def update_title_race_entry():
+    wl.DASH_APP.title = "Race Entry"
+    return wl.DASH_APP.index()
+
+
+@wl.FLASK_APP.route("/race_manager")
+def update_title_race_manager():
+    wl.DASH_APP.title = "Race Manager"
+    return wl.DASH_APP.index()
+
+
+@wl.FLASK_APP.route("/race_results")
+def update_title_race_results():
+    wl.DASH_APP.title = "Race Results"
+    return wl.DASH_APP.index()
