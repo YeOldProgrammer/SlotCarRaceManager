@@ -291,6 +291,15 @@ class RaceData:
 
         while len(remaining_car_keys) > 1:
             random.shuffle(racer_combos)
+
+            max_driver_id = 0
+            max_car_count = 0
+            for current_driver_id in remaining_car_keys_by_driver:
+                car_count = len(remaining_car_keys_by_driver[current_driver_id])
+                if car_count > max_car_count:
+                    max_driver_id = current_driver_id
+                    max_car_count = car_count
+
             for combo in racer_combos:
                 try:
                     if len(remaining_car_keys) < 2:
@@ -298,6 +307,10 @@ class RaceData:
 
                     driver1 = combo[0]
                     driver2 = combo[1]
+
+                    if driver1 != max_driver_id and driver2 != max_driver_id:
+                        continue
+
                     car_count_left = len(remaining_car_keys_by_driver[driver1])
                     car_count_right = len(remaining_car_keys_by_driver[driver2])
 
