@@ -37,6 +37,7 @@ DRIVER_TABLE = BASE_ID + 'driver_table'
 RACE_GRAPH = BASE_ID + 'race_graph'
 RACE_TABLE = BASE_ID + 'race_table'
 REPORT_TABLE = BASE_ID + 'report_table'
+GRAPH_ROW_SIZE = 35
 
 
 ala.APP_LAYOUTS[ala.APP_RACE_RESULT] = html.Div(
@@ -233,22 +234,40 @@ def generate_graph(new_race_button, refresh_button, orig_url_params_str):
 
     race_fig = px.bar(race_df.sort_values(by='eliminated'), x='eliminated', y='car_name', color='driver_name')
     race_fig.update_layout({
+        'autosize': True,
+        'height': GRAPH_ROW_SIZE * race_data_obj.orig_car_count,
         'font_color': 'white',
         'plot_bgcolor': 'rgba(0, 0, 0, 0)',
         'paper_bgcolor': 'rgba(0, 0, 0, 0)',
-        'xaxis_title': 'Heat Reached',
-        'yaxis_title': 'Car Name',
+        'xaxis': dict(
+            title='Heat Reached',
+            tickmode='linear',
+        ),
+        'yaxis': dict(
+            title='Car Name',
+            tickmode='linear',
+        ),
         'title': 'Race Results'
     })
 
     driver_fig = px.bar(driver_df.sort_values(by='win_count'), x='win_count', y='driver_name')
     driver_fig.update_layout({
+        'autosize': True,
+        'height': GRAPH_ROW_SIZE * race_data_obj.orig_driver_count,
         'font_color': 'white',
         'plot_bgcolor': 'rgba(0, 0, 0, 0)',
         'paper_bgcolor': 'rgba(0, 0, 0, 0)',
-        'xaxis_title': 'Total Wins',
-        'yaxis_title': 'Driver Name',
-        'title': 'Driver Results'
+        #'xaxis_title': 'Total Wins',
+        #'yaxis_title': 'Driver Name',
+        'title': 'Driver Results',
+        'xaxis': dict(
+            title='Total Wins',
+            tickmode='linear',
+        ),
+        'yaxis': dict(
+            title='Driver Name',
+            tickmode='linear',
+        )
     })
 
     race_columns = [
