@@ -12,7 +12,7 @@ import visdcc
 from dash.exceptions import PreventUpdate
 import plotly.express as px
 import plotly.graph_objects as go
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 from app_code.common import app_logging as al
 import app_code.common.db_data as dbd
 import app_code.common.web_logic as wl
@@ -45,6 +45,20 @@ STATS_JAVASCRIPT = BASE_ID + 'javascript'
 # DRIVER_TABLE = BASE_ID + 'driver_table'
 URL_ID = BASE_ID + 'url'
 TIMER_TRIGGER = BASE_ID + 'timer_trigger'
+CLIENT_INFO = BASE_ID + 'client_info'
+BODY_DIV = BASE_ID + 'body_div'
+
+
+CLIENTSIDE_CALLBACK = """
+    function(href) {
+        var w = window.innerWidth;
+        var h = window.innerHeight;
+        return {'height': h, 'width': w};
+    }
+"""
+
+# LOGGER.error("Init Client Side Callback: app_race_manager")
+wl.DASH_APP.clientside_callback(CLIENTSIDE_CALLBACK, Output(CLIENT_INFO, 'children'), Input(URL_ID, 'href'))
 
 
 def gen_key(race_id):
@@ -189,6 +203,8 @@ def generate_row_data(run_id=None,
 
 def gen_initial_div_data():
     div_data_output = []
+    inputs.clear()
+    outputs.clear()
 
     inputs.append(Input(URL_ID, 'href'))
     inputs.append(Input(START_BUTTON, 'n_clicks'))
@@ -199,6 +215,7 @@ def gen_initial_div_data():
     inputs.append(Input(STATS_BUTTON, 'n_clicks'))
     inputs.append(Input(STATS_ROW, 'children'))
     outputs.append(Output(URL_ID, 'href'))
+    outputs.append(Output(BODY_DIV, 'style'))
     outputs.append(Output(STATS_ROW, 'children'))
     outputs.append(Output(START_BUTTON, 'style'))
     outputs.append(Output(DONE_BUTTON, 'style'))
@@ -235,6 +252,7 @@ def gen_initial_div_data():
             )
         )
 
+    inputs.append(Input(CLIENT_INFO, 'children'))
     return div_data_output
 
 
@@ -340,6 +358,7 @@ ala.APP_LAYOUTS[ala.APP_RACE_MANAGER] = html.Div(
     [
         dcc.Location(id=URL_ID),
         dcc.Interval(id=TIMER_TRIGGER, n_intervals=cd.ENV_VARS['RACE_DURATION_SEC'] + 5, interval=1*1000),
+        html.Div(id=CLIENT_INFO),
         html.Div(
             [
                 dbc.Row([
@@ -363,6 +382,7 @@ ala.APP_LAYOUTS[ala.APP_RACE_MANAGER] = html.Div(
             # style={'height': '100px', 'backgroundColor': 'blue', 'height': '100px'}
         ),
         html.Div(
+            id=BODY_DIV,
             children=[
                 dcc.Loading([
                     html.Div(div_data),
@@ -417,7 +437,7 @@ ala.APP_LAYOUTS[ala.APP_RACE_MANAGER] = html.Div(
 
 @wl.DASH_APP.callback(
     Output(REMAINING_TIME_CHART, 'figure'),
-    Input(TIMER_TRIGGER, 'n_intervals')
+    Input(TIMER_TRIGGER, 'n_intervals'),
 )
 def generate_timer(interval):
     time_remaining = interval
@@ -474,6 +494,25 @@ def generate_graph(**kwargs):
     race_data_obj = rl.RaceData()
     new_url_params_str = ''
     updated_timer_value = dash.no_update
+
+    body_height = int(cd.ENV_VARS['BODY_DISPLAY_HEIGHT'])
+    try:
+        if CLIENT_INFO in kwargs:
+            screen_height = int(kwargs[CLIENT_INFO]['height'])
+            body_height = screen_height - 350
+            LOGGER.info("Screen:Buy Back: screen_height:%d found using:%d", screen_height, body_height)
+        else:
+            LOGGER.warning("Screen:Buy Back: screen_height not found using:%d", body_height)
+    except Exception:
+        LOGGER.warning("Screen:Race Manager: screen_height failed to be found using:%d", body_height, exc_info=True)
+
+    body_style = {
+        'margin-left': '60px',
+        'height': f"{body_height}px",
+        'overflow-y': 'scroll',
+        'overflow-x': 'hidden',
+        'backgroundColor': cd.ENV_VARS['BODY_DISPLAY_COLOR']
+    }
 
     button_id = ''
     timer_enabled = True
@@ -574,7 +613,8 @@ def generate_graph(**kwargs):
                 for rule in outputs:
                     rv0.append(dash.no_update)
                 url = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/race_results?race_id=%s&final=0" % url_params_dict['race_id']
-                rv0[6] = f'window.open("{url}", "_blank")'
+                rv0[1] = body_style
+                rv0[7] = f'window.open("{url}", "_blank")'
                 LOGGER.info("    Race_id %s heat_id %s gather stats",
                             url_params_dict['race_id'], url_params_dict['heat_id'])
                 return rv0
@@ -660,8 +700,8 @@ def generate_graph(**kwargs):
         'title': 'Driver Results'
     })
 
-    rv1 = [new_url_params_str, stats_data, start_style, done_style, next_heat_style, shuffle_style, dash.no_update,
-           graph, updated_timer_value, timer_interval
+    rv1 = [new_url_params_str, body_style, stats_data, start_style, done_style, next_heat_style, shuffle_style,
+           dash.no_update, graph, updated_timer_value, timer_interval
            # driver_fig, driver_df.to_dict('records'), driver_columns
            ]
 
@@ -796,10 +836,12 @@ def calculate_race_pos(race_data_obj, kwargs, button_id):
     race_results = []
     run_id = 0
     for kwarg in kwargs:
-        run_id = get_run_id(kwarg)
+        item_run_id = get_run_id(kwarg)
 
-        if run_id < 0:
+        if item_run_id < 0:
             continue
+
+        run_id = item_run_id
 
         if button_id == kwarg:
             clicked_run_id = run_id

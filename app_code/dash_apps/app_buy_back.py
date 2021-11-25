@@ -38,6 +38,20 @@ REMAINING_TIME_CHART = BASE_ID + "time_remaining_pie_chart"
 STATS_ROW = BASE_ID + 'stats'
 URL_ID = BASE_ID + 'url'
 TIMER_TRIGGER = BASE_ID + 'timer_trigger'
+BODY_DIV = BASE_ID + 'body_div'
+CLIENT_INFO = BASE_ID + 'client_info'
+
+
+CLIENTSIDE_CALLBACK = """
+    function(href) {
+        var w = window.innerWidth;
+        var h = window.innerHeight;
+        return {'height': h, 'width': w};
+    }
+"""
+
+# LOGGER.error("Init Client Side Callback: app_buy_back")
+wl.DASH_APP.clientside_callback(CLIENTSIDE_CALLBACK, Output(CLIENT_INFO, 'children'), Input(URL_ID, 'href'))
 
 
 def gen_key(race_id):
@@ -65,6 +79,7 @@ def gen_initial_div_data():
     inputs.append(Input(URL_ID, 'href'))
     inputs.append(Input(DONE_BUTTON, 'n_clicks'))
     outputs.append(Output(URL_ID, 'href'))
+    outputs.append(Output(BODY_DIV, 'style'))
 
     for idx in range(int(cd.ENV_VARS['MAX_RACE_COUNT'] / 2)):
         run_id = idx
@@ -99,7 +114,7 @@ def gen_initial_div_data():
 
             )
         )
-
+    inputs.append(Input(CLIENT_INFO, 'children'))
     return div_data_output
 
 
@@ -139,6 +154,7 @@ div_data = gen_initial_div_data()
 ala.APP_LAYOUTS[ala.APP_BUY_BACK] = html.Div(
     [
         dcc.Location(id=URL_ID),
+        html.Div(id=CLIENT_INFO),
         html.Div(
             [
                 dbc.Row([
@@ -155,6 +171,7 @@ ala.APP_LAYOUTS[ala.APP_BUY_BACK] = html.Div(
             # style={'height': '100px', 'backgroundColor': 'blue', 'height': '100px'}
         ),
         html.Div(
+            id=BODY_DIV,
             children=div_data,
             style={'margin-left': '60px', 'height': f"{cd.ENV_VARS['BODY_DISPLAY_HEIGHT']}px", 'overflow-y': 'scroll',
                    'overflow-x': 'hidden', 'backgroundColor': cd.ENV_VARS['BODY_DISPLAY_COLOR']}
@@ -179,6 +196,27 @@ ala.APP_LAYOUTS[ala.APP_BUY_BACK] = html.Div(
 def generate_graph(**kwargs):
     cb_start_time = time.time()
     ctx = dash.callback_context
+
+    screen_height = int(cd.ENV_VARS['BODY_DISPLAY_HEIGHT'])
+    try:
+        if CLIENT_INFO in kwargs:
+            screen_height = int(kwargs[CLIENT_INFO]['height'])
+            LOGGER.info("Screen:Buy Back: screen_height:%d found", screen_height)
+        else:
+            LOGGER.warning("Screen:Buy Back: screen_height:%d not found", screen_height)
+    except Exception:
+        LOGGER.warning("Screen:Buy Back: screen_height failed to be found", exc_info=True)
+
+    body_height = screen_height - 300
+    body_style = {
+        'margin-left': '60px',
+        'height': f"{body_height}px",
+        'overflow-y': 'scroll',
+        'overflow-x': 'hidden',
+        'backgroundColor': cd.ENV_VARS['BODY_DISPLAY_COLOR']
+    }
+
+    LOGGER.info("Screen:Buy Back: screen_height:%d body_height:%d", screen_height, body_height)
 
     orig_url_params_str = kwargs[URL_ID]
     url_params_dict = parse_url_params_str(orig_url_params_str)
@@ -207,7 +245,7 @@ def generate_graph(**kwargs):
         filter_by(in_race=False). \
         all()
 
-    rv1 = [new_url_params_str]
+    rv1 = [new_url_params_str, body_style]
     driver_data = {}
     for race_obj in race_obj_list:
         driver = race_data_obj.car_id_to_car_name[race_obj.car_id]['driver_name']

@@ -11,7 +11,7 @@ from sqlalchemy import func
 from dash.exceptions import PreventUpdate
 import plotly.express as px
 # import plotly.graph_objects as go
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 from app_code.common import app_logging as al
 import app_code.common.db_data as dbd
 import app_code.common.web_logic as wl
@@ -37,12 +37,28 @@ DRIVER_TABLE = BASE_ID + 'driver_table'
 RACE_GRAPH = BASE_ID + 'race_graph'
 RACE_TABLE = BASE_ID + 'race_table'
 REPORT_TABLE = BASE_ID + 'report_table'
+BODY_DIV = BASE_ID + 'body_div'
 GRAPH_ROW_SIZE = 35
+
+CLIENT_INFO = BASE_ID + 'client_info'
+
+
+CLIENTSIDE_CALLBACK = """
+    function(href) {
+        var w = window.innerWidth;
+        var h = window.innerHeight;
+        return {'height': h, 'width': w};
+    }
+"""
+
+LOGGER.error("Init Client Side Callback: app_race_results")
+wl.DASH_APP.clientside_callback(CLIENTSIDE_CALLBACK, Output(CLIENT_INFO, 'children'), Input(URL_ID, 'href'))
 
 
 ala.APP_LAYOUTS[ala.APP_RACE_RESULT] = html.Div(
     [
         dcc.Location(id=URL_ID),
+        html.Div(id=CLIENT_INFO),
         html.Div(
             [
                 dbc.Row([
@@ -59,6 +75,7 @@ ala.APP_LAYOUTS[ala.APP_RACE_RESULT] = html.Div(
             # style={'height': '100px', 'backgroundColor': 'blue', 'height': '100px'}
         ),
         html.Div(
+            id=BODY_DIV,
             children=dbc.Row([
                 dbc.Col(children=[
                     html.Div(children=[], id=DIV_DATA),
@@ -164,14 +181,16 @@ def parse_url_params_str(url_params_str):
     Output(REFRESH_BUTTON, 'style'),
     Output(REPORT_TABLE, 'data'),
     Output(REPORT_TABLE, 'columns'),
+    Output(BODY_DIV, 'style'),
     [
         Input(NEW_RACE_BUTTON, "n_clicks"),
         Input(REFRESH_BUTTON, "n_clicks"),
         Input(URL_ID, "href"),
+        Input(CLIENT_INFO, 'children')
     ],
 
 )
-def generate_graph(new_race_button, refresh_button, orig_url_params_str):
+def generate_graph(new_race_button, refresh_button, orig_url_params_str, client_info):
     cb_start_time = time.time()
     ctx = dash.callback_context
 
@@ -183,6 +202,24 @@ def generate_graph(new_race_button, refresh_button, orig_url_params_str):
         LOGGER.info("Buy Back - Race_id was not specified")
         new_url_params_str = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/race_entry"
         raise PreventUpdate
+
+    try:
+        LOGGER.info("Client Info:%s", client_info)
+        screen_height = int(client_info['height'])
+        body_height = screen_height - 300
+        LOGGER.info("Screen:Race Results: screen_height:%d body_height:%d", screen_height, body_height)
+
+    except Exception:
+        body_height = int(cd.ENV_VARS['BODY_DISPLAY_HEIGHT'])
+        LOGGER.warning("Screen:Race Results: Not found using:%d", body_height)
+
+    body_style = {
+        'margin-left': '60px',
+        'height': f"{body_height}px",
+        'overflow-y': 'scroll',
+        'overflow-x': 'hidden',
+        'backgroundColor': cd.ENV_VARS['BODY_DISPLAY_COLOR']
+    }
 
     final = False
     if 'final' in url_params_dict:
@@ -213,7 +250,7 @@ def generate_graph(new_race_button, refresh_button, orig_url_params_str):
         if button_id == NEW_RACE_BUTTON:
             new_url_params_str = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080/race_entry"
             return dash.no_update, dash.no_update, new_url_params_str, dash.no_update, dash.no_update, [], [], [], [],\
-                   dash.no_update, dash.no_update, dash.no_update, dash.no_update
+                   dash.no_update, dash.no_update, dash.no_update, dash.no_update, body_style
 
     race_dict_list, heat_dict_list, race_df, heat_df, driver_df, report_df, max_heat = \
         race_data_obj.get_race_results(print_results=True)
@@ -253,7 +290,7 @@ def generate_graph(new_race_button, refresh_button, orig_url_params_str):
     driver_fig = px.bar(driver_df.sort_values(by='win_count'), x='win_count', y='driver_name')
     driver_fig.update_layout({
         'autosize': True,
-        'height': GRAPH_ROW_SIZE * race_data_obj.orig_driver_count,
+        'height': GRAPH_ROW_SIZE * race_data_obj.orig_driver_count * 2,
         'font_color': 'white',
         'plot_bgcolor': 'rgba(0, 0, 0, 0)',
         'paper_bgcolor': 'rgba(0, 0, 0, 0)',
@@ -306,10 +343,11 @@ def generate_graph(new_race_button, refresh_button, orig_url_params_str):
         report_columns.append({'name': 'Heat %d' % heat_id, 'id': str(heat_id)})
 
     return div_data, div_data_style, dash.no_update, race_fig, driver_fig, \
-           race_df.to_dict('records'), race_columns, \
-           driver_df.to_dict('records'), driver_columns, \
+           race_df.sort_values(['driver_name', 'car_name']).to_dict('records'), race_columns, \
+           driver_df.sort_values(['driver_name']).to_dict('records'), driver_columns, \
            new_race_style, refresh_style, \
-           report_df.to_dict('records'), report_columns
+           report_df.sort_values(['driver_name', 'car_name']).sort_values(['driver_name']).to_dict('records'),\
+           report_columns, body_style
 
 
 def save_report_data(race_data_obj, race_dict_list, heat_dict_list):

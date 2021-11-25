@@ -50,9 +50,24 @@ CAR_ADD_SEL_BUTTON = BASE_ID + 'car_add_sel'
 CAR_ADD_ALL_BUTTON = BASE_ID + 'car_add_all'
 CAR_REMOVE_FROM_RACE_BUTTON = BASE_ID + 'car_remove'
 URL_ID = BASE_ID + 'url'
+CLIENT_INFO = BASE_ID + 'client_info'
+# BODY_DIV = BASE_ID + 'body_div'
+#
+#
+# CLIENTSIDE_CALLBACK = """
+#     function(href) {
+#         var w = window.innerWidth;
+#         var h = window.innerHeight;
+#         return {'height': h, 'width': w};
+#     }
+# """
+#
+# LOGGER.info("Init Client Side Callback")
+# wl.DASH_APP.clientside_callback(CLIENTSIDE_CALLBACK, Output(CLIENT_INFO, 'children'), Input(URL_ID, 'href'))
 
 ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
     html.H1('Race Entry'),
+    html.Div(id=CLIENT_INFO),
     dcc.Location(id=URL_ID),
     dbc.Row([
         dbc.Col(
@@ -213,7 +228,7 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
         Output(URL_ID, 'href'),
         Output(ADD_CAR_OPEN, 'style'),
         Output(RACE_ENTRIES, 'children'),
-        Output(RACE_DRIVERS, 'children')
+        Output(RACE_DRIVERS, 'children'),
     ],
     [
         Input(DRIVER_DROPDOWN, 'value'),
@@ -230,12 +245,13 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
         State(CAR_AVAILABLE_TABLE, 'data'),
         State(RACE_PARTICIPANTS_TABLE, 'selected_rows'),
         State(RACE_PARTICIPANTS_TABLE, 'data'),
-        State(URL_ID, 'href')
+        State(URL_ID, 'href'),
+        State(CLIENT_INFO, 'children')
     ]
 )
 def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
                  car_add_all_n_clicks, car_delete_n_clicks, car_remove_n_clicks, start_race_n_clicks, refresh_n_clicks,
-                 car_available_selected, car_available_data, car_data_selected, car_data, orig_url):
+                 car_available_selected, car_available_data, car_data_selected, car_data, orig_url, client_info):
     cb_start_time = time.time()
     ctx = dash.callback_context
 
