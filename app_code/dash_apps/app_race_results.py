@@ -318,9 +318,10 @@ def generate_graph(new_race_button, refresh_button, orig_url_params_str, client_
         {'name': 'Heat Reached', 'id': 'eliminated'},
     ]
 
-    display_heat = max_heat - 1
-    if display_heat == 0:
-        display_heat = 1
+    display_heat = max_heat
+    # display_heat = max_heat - 1
+    # if display_heat == 0:
+    #     display_heat = 1
 
     driver_columns = [
         {'name': ['Driver Name'], 'id': 'driver_name'},
