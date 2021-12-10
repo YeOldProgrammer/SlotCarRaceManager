@@ -497,7 +497,7 @@ def generate_graph(**kwargs):
 
     body_height = int(cd.ENV_VARS['BODY_DISPLAY_HEIGHT'])
     try:
-        if CLIENT_INFO in kwargs:
+        if CLIENT_INFO in kwargs and kwargs[CLIENT_INFO] is not None:
             screen_height = int(kwargs[CLIENT_INFO]['height'])
             body_height = screen_height - 350
             LOGGER.info("Screen:Buy Back: screen_height:%d found using:%d", screen_height, body_height)

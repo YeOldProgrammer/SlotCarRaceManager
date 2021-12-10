@@ -30,6 +30,7 @@ CLICK_RIGHT = 'right_check'
 HEAT_SLIDER = BASE_ID + 'slider'
 START_BUTTON = BASE_ID + 'start_heat'
 DONE_BUTTON = BASE_ID + 'done_heat'
+SELECT_ALL_BUTTON = BASE_ID + 'select_all'
 NEXT_HEAT_BUTTON = BASE_ID + 'next_heat'
 RE_SHUFFLE_BUTTON = BASE_ID + 'shuffle'
 NEW_RACE_BUTTON = BASE_ID + 'new_race'
@@ -115,6 +116,8 @@ def gen_initial_div_data():
             )
         )
     inputs.append(Input(CLIENT_INFO, 'children'))
+    inputs.append(Input(SELECT_ALL_BUTTON, 'n_clicks'))
+    div_data_output.append(dbc.Button('Select All', id=SELECT_ALL_BUTTON, style={'margin-top': '10px'}))
     return div_data_output
 
 
@@ -199,7 +202,7 @@ def generate_graph(**kwargs):
 
     screen_height = int(cd.ENV_VARS['BODY_DISPLAY_HEIGHT'])
     try:
-        if CLIENT_INFO in kwargs:
+        if CLIENT_INFO in kwargs and kwargs[CLIENT_INFO] is not None:
             screen_height = int(kwargs[CLIENT_INFO]['height'])
             LOGGER.info("Screen:Buy Back: screen_height:%d found", screen_height)
         else:
@@ -259,6 +262,24 @@ def generate_graph(**kwargs):
     else:
         button_id = None
 
+    check_count = 0
+    checked_count = 0
+    for driver_name in driver_data:
+        for _ in driver_data[driver_name]:
+            check_count += 1
+
+    for data_key in kwargs:
+        if 'check_value' in data_key and kwargs[data_key] is not None:
+            for _ in kwargs[data_key]:
+                checked_count += 1
+
+    select_all = 0
+    if button_id == SELECT_ALL_BUTTON:
+        if check_count == checked_count:
+            select_all = 1
+        else:
+            select_all = 2
+
     idx = 0
     for driver_name in driver_data:
         idx += 1
@@ -268,8 +289,10 @@ def generate_graph(**kwargs):
 
         rv1.append({'display': 'block'})
         rv1.append(driver_data[driver_name])
-        if button_id is None:
+        if button_id is None or select_all == 2:
             rv1.append(car_list)
+        elif select_all == 1:
+            rv1.append([])
         else:
             rv1.append(dash.no_update)
         rv1.append(driver_name)
