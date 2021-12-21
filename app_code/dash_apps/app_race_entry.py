@@ -27,6 +27,11 @@ ADD_DRIVER_OPEN = BASE_ID + 'add_driver_button_open'
 ADD_DRIVER_INPUT = BASE_ID + 'add_driver_input'
 ADD_DRIVER_INSERT = BASE_ID + 'add_driver_button_insert'
 ADD_DRIVER_CANCEL = BASE_ID + 'add_driver_button_cancel'
+RENAME_DRIVER_MODAL = BASE_ID + 'rename_driver_modal'
+RENAME_DRIVER_OPEN = BASE_ID + 'rename_driver_button_open'
+RENAME_DRIVER_INPUT = BASE_ID + 'rename_driver_input'
+RENAME_DRIVER_INSERT = BASE_ID + 'rename_driver_button_insert'
+RENAME_DRIVER_CANCEL = BASE_ID + 'rename_driver_button_cancel'
 DRIVER_DELETE_BUTTON = BASE_ID + 'driver_delete'
 RACE_ENTRIES = BASE_ID + 'race_entries'
 RACE_DRIVERS = BASE_ID + 'race_drivers'
@@ -127,6 +132,9 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
                         dbc.Button("Add New Driver", id=ADD_DRIVER_OPEN, style={'margin-left': '20px'}),
                     ], width='auto'),
                     dbc.Col([
+                        dbc.Button("Rename Driver", id=RENAME_DRIVER_OPEN, style={'margin-left': '20px'}),
+                    ], width='auto'),
+                    dbc.Col([
                         dbc.Button('Delete Driver from DB (and all associated cars)',
                                    id=DRIVER_DELETE_BUTTON, style={'margin-left': '20px'}),
                         # dcc.ConfirmDialogProvider(
@@ -196,6 +204,22 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
             ]),
         ],
         id=ADD_DRIVER_MODAL,
+    ),
+
+    # Rename Existing Driver
+    dbc.Modal(
+        [
+            dbc.ModalHeader("Rename Existing Driver"),
+            dbc.ModalBody([
+                html.H4("Driver Name:"),
+                dcc.Input(id=RENAME_DRIVER_INPUT, type="text", placeholder="", style={'width': '100%'}),
+            ], style={'display': 'inline-block'}),
+            dbc.ModalFooter([
+                dbc.Button("Rename Driver", id=RENAME_DRIVER_INSERT, className="ml-auto"),
+                dbc.Button("Cancel", id=RENAME_DRIVER_CANCEL, className="ml-auto"),
+            ]),
+        ],
+        id=RENAME_DRIVER_MODAL,
     ),
 
     # Add New Car
@@ -584,36 +608,78 @@ def get_updated_drivers(car_queued):
 @wl.DASH_APP.callback(
     [
         Output(ADD_DRIVER_MODAL, "is_open"),
-        Output(DRIVER_DROPDOWN, "value"),
         Output(ADD_DRIVER_INPUT, "value"),
+        Output(DRIVER_DROPDOWN, "value"),
+        Output(RENAME_DRIVER_MODAL, "is_open"),
+        Output(RENAME_DRIVER_INPUT, "value"),
     ],
     [
         Input(ADD_DRIVER_OPEN, "n_clicks"),
         Input(ADD_DRIVER_INSERT, "n_clicks"),
         Input(ADD_DRIVER_CANCEL, "n_clicks"),
+        Input(RENAME_DRIVER_OPEN, "n_clicks"),
+        Input(RENAME_DRIVER_INSERT, "n_clicks"),
+        Input(RENAME_DRIVER_CANCEL, "n_clicks"),
     ],
     [
         State(ADD_DRIVER_MODAL, "is_open"),
-        State(ADD_DRIVER_INPUT, "value")
+        State(ADD_DRIVER_INPUT, "value"),
+        State(RENAME_DRIVER_MODAL, "is_open"),
+        State(RENAME_DRIVER_INPUT, "value"),
+        State(DRIVER_DROPDOWN, "value"),
     ],
 )
-def modal_add_driver(open_button, insert_button, cancel_button, is_open, driver_input):
-    if not open_button and not insert_button and not cancel_button:
-        return is_open, dash.no_update, dash.no_update
+def modal_add_driver(add_open_button, add_insert_button, add_cancel_button, rename_open_button, rename_insert_button,
+                     rename_cancel_button, add_is_open, add_driver_input, rename_is_open, rename_driver_input,
+                     driver_dropdown):
+    if not add_open_button and not add_insert_button and not add_cancel_button and \
+            not rename_open_button and not rename_insert_button and not rename_cancel_button:
+        return add_is_open, dash.no_update, dash.no_update, rename_is_open, dash.no_update
 
     ctx = dash.callback_context
-    if ctx.triggered and ctx.triggered[0]['prop_id'].split('.')[0] == ADD_DRIVER_INSERT:
-        LOGGER.info("ADD Driver (%s)", driver_input)
-        driver_exist = dcd.DriverDb.query.filter_by(driver_name=driver_input).first()
-        if driver_exist:
-            return False, driver_input, ''
+    if ctx.triggered and ctx.triggered[0]['prop_id'].split('.')[0] == ADD_DRIVER_INSERT and \
+            add_driver_input.strip() != '':
 
-        driver_obj = dcd.DriverDb({'driver_name': driver_input})
+        driver_exist = dcd.DriverDb.query.filter_by(driver_name=add_driver_input).first()
+        if driver_exist:
+            LOGGER.info("ADD Driver (%s) already exists", add_driver_input)
+            return True, dash.no_update, dash.no_update, False, dash.no_update
+
+        LOGGER.info("ADD Driver (%s)", add_driver_input)
+        driver_obj = dcd.DriverDb({'driver_name': add_driver_input})
         dbd.DB_DATA['DB'].session.add(driver_obj)
         dbd.DB_DATA['DB'].session.commit()
-        return False, driver_input, ''
+        return False, '', add_driver_input, False, dash.no_update
 
-    return not is_open, dash.no_update, dash.no_update
+    if ctx.triggered and ctx.triggered[0]['prop_id'].split('.')[0] == RENAME_DRIVER_INSERT and \
+            rename_driver_input.strip() != '' and driver_dropdown.strip() != '':
+
+        driver_exist = dcd.DriverDb.query.filter_by(driver_name=driver_dropdown).first()
+        if not driver_exist:
+            LOGGER.info("RENAME Driver %s to %s - %s not found", driver_dropdown, rename_driver_input, driver_dropdown)
+            return False, '', dash.no_update, True, dash.no_update
+
+        new_driver_exist = dcd.DriverDb.query.filter_by(driver_name=rename_driver_input).first()
+        if new_driver_exist:
+            LOGGER.info("RENAME Driver %s to %s - %s already exists",
+                        driver_dropdown, rename_driver_input, rename_driver_input)
+            return False, '', dash.no_update, True, dash.no_update
+
+        LOGGER.info("RENAME Driver %s to %s", driver_dropdown, rename_driver_input)
+        driver_exist.driver_name = rename_driver_input
+        dbd.DB_DATA['DB'].session.commit()
+        return False, dash.no_update, rename_driver_input, False, ''
+
+    if ctx.triggered and ctx.triggered[0]['prop_id'].split('.')[0] == ADD_DRIVER_OPEN:
+        return True, '', dash.no_update, False, ''
+
+    if ctx.triggered and ctx.triggered[0]['prop_id'].split('.')[0] == RENAME_DRIVER_OPEN:
+        if driver_dropdown.strip() != '':
+            return False, '', dash.no_update, True, driver_dropdown
+        else:
+            LOGGER.info("No driver selected, do not open prompt")
+
+    return False, '', dash.no_update, False, ''
 
 
 @wl.DASH_APP.callback(
