@@ -55,6 +55,7 @@ CAR_ADD_SEL_BUTTON = BASE_ID + 'car_add_sel'
 CAR_ADD_ALL_BUTTON = BASE_ID + 'car_add_all'
 CAR_REMOVE_FROM_RACE_BUTTON = BASE_ID + 'car_remove'
 URL_ID = BASE_ID + 'url'
+ALERT_MSG = BASE_ID + 'alert'
 CLIENT_INFO = BASE_ID + 'client_info'
 # BODY_DIV = BASE_ID + 'body_div'
 #
@@ -84,6 +85,7 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
         ),
         dbc.Col(html.Img(src=wl.DASH_APP.get_asset_url(cd.ENV_VARS['LOGO_FILE']), style={'margin-left': '20px'})),
     ]),
+    dbc.Alert(children="Default", color="warning", id=ALERT_MSG, is_open=False, dismissable=True, fade=False),
     dbc.Row([
         dbc.Col(
             [
@@ -114,7 +116,7 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
                     },
                 ),
                 dbc.Button('Remove from race', id=CAR_REMOVE_FROM_RACE_BUTTON,
-                            style={'margin-top': '10px', 'width': '100%'}),
+                           style={'margin-top': '10px', 'width': '100%'}),
             ],
             width='auto',
             style={"border": "2px black solid", 'padding': '20px', 'margin-left': '50px'}
@@ -253,6 +255,8 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
         Output(ADD_CAR_OPEN, 'style'),
         Output(RACE_ENTRIES, 'children'),
         Output(RACE_DRIVERS, 'children'),
+        Output(ALERT_MSG, 'is_open'),
+        Output(ALERT_MSG, 'children'),
     ],
     [
         Input(DRIVER_DROPDOWN, 'value'),
@@ -263,6 +267,7 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
         Input(CAR_REMOVE_FROM_RACE_BUTTON, 'n_clicks'),
         Input(START_RACE_BUTTON, 'n_clicks'),
         Input(ADD_CAR_REFRESH, 'n_clicks'),
+        Input(ALERT_MSG, 'is_open'),
     ],
     [
         State(CAR_AVAILABLE_TABLE, 'selected_rows'),
@@ -275,7 +280,8 @@ ala.APP_LAYOUTS[ala.APP_RACE_ENTRY] = html.Div([
 )
 def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
                  car_add_all_n_clicks, car_delete_n_clicks, car_remove_n_clicks, start_race_n_clicks, refresh_n_clicks,
-                 car_available_selected, car_available_data, car_data_selected, car_data, orig_url, client_info):
+                 alert_is_open, car_available_selected, car_available_data, car_data_selected, car_data, orig_url,
+                 client_info):
     cb_start_time = time.time()
     ctx = dash.callback_context
 
@@ -389,13 +395,17 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
         # return driver_list, new_driver, car_list, updated_car_selected, dash.no_update, dash.no_update, new_url,\
         #        default_add_new_car_style
         return driver_list, car_list, updated_car_selected, dash.no_update, dash.no_update, new_url,\
-               default_add_new_car_style, display_entries, display_drivers
+               default_add_new_car_style, display_entries, display_drivers, dash.no_update, dash.no_update
 
     car_queued = dash.no_update
     LOGGER.info("Race Entry Callback car_list=%s", car_list)
 
     button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    if button_id == CAR_ADD_SEL_BUTTON or button_id == CAR_ADD_ALL_BUTTON:
+    if button_id == ALERT_MSG:
+        LOGGER.info("Dismissing Alert")
+        raise PreventUpdate
+
+    elif button_id == CAR_ADD_SEL_BUTTON or button_id == CAR_ADD_ALL_BUTTON:
         car_queued = []
         car_names = []
         driver_names = {}
@@ -424,6 +434,17 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
                 if car_data is not None and len(car_queued) == 0:
                     for found_car_dict in car_data:
                         car_queued.append(found_car_dict)
+
+                    new_total = len(car_queued) + len(car_names)
+                    if new_total > cd.ENV_VARS['MAX_RACE_COUNT']:
+                        warning_msg = "Number of cars (%d) will exceed the Max Race Count parameter.   " \
+                                      "Either limit the number of cars to %d or less or " \
+                                      "edit the MAX_RACE_COUNT field in the %s file and restart the program." % \
+                                      (new_total, cd.ENV_VARS['MAX_RACE_COUNT'], cd.ENV_VARS['ENV_VAR_FILE'])
+                        LOGGER.warning(warning_msg)
+                        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, \
+                               dash.no_update, dash.no_update, dash.no_update, dash.no_update, \
+                               True, warning_msg
 
                 car_queued.append({'car_name': car_name,
                                    'driver_name': driver_dropdown,
@@ -587,7 +608,7 @@ def display_page(driver_dropdown, driver_delete_n_clicks, car_add_sel_n_clicks,
     # return driver_list, new_driver, car_list, updated_car_selected, car_queued, updated_car_data_selected, new_url,\
     #        default_add_new_car_style
     return driver_list, car_list, updated_car_selected, car_queued, updated_car_data_selected, new_url,\
-           default_add_new_car_style, display_entries, display_drivers
+           default_add_new_car_style, display_entries, display_drivers, dash.no_update, dash.no_update
 
 
 def get_updated_drivers(car_queued):

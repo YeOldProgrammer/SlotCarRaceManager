@@ -30,7 +30,7 @@ def start_app(**kwargs):
 
     process_cli_args(**kwargs)
 
-    LOGGER.info("Start (%s)", os.getcwd())
+    LOGGER.info("Start (%s) Max Race Count=%d", os.getcwd(), cd.ENV_VARS['MAX_RACE_COUNT'])
     server = wl.DASH_APP.server
 
     rl.display_loaded_data()

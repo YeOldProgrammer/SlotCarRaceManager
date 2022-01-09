@@ -35,6 +35,7 @@ def load_data():
     load_dotenv(env_var_file)
 
     ENV_VARS['BASE_DIR'] = os.getcwd()
+    ENV_VARS['ENV_VAR_FILE'] = env_var_file
     ENV_VARS['DATA_DIR'] = os.path.join(ENV_VARS['BASE_DIR'], 'data')
     ENV_VARS['DEFAULT_DATA_DIR'] = os.path.join(ENV_VARS['BASE_DIR'], 'default_data')
     ENV_VARS['LOG_DIR'] = os.path.join(ENV_VARS['DATA_DIR'], 'logs')
