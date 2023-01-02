@@ -273,7 +273,9 @@ def generate_graph(**kwargs):
             for _ in kwargs[data_key]:
                 checked_count += 1
 
-    select_all = 0
+    # Set select all to 0 if buy back check boxes should be all unselected
+    # Set select all to 2 if buy back check boxes should be all selected
+    select_all = 2
     if button_id == SELECT_ALL_BUTTON:
         if check_count == checked_count:
             select_all = 1
