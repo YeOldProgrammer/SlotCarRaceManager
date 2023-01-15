@@ -42,6 +42,9 @@ TIMER_TRIGGER = BASE_ID + 'timer_trigger'
 BODY_DIV = BASE_ID + 'body_div'
 CLIENT_INFO = BASE_ID + 'client_info'
 
+HIDE_ALL = 1
+SHOW_ALL = 2
+
 
 CLIENTSIDE_CALLBACK = """
     function(href) {
@@ -275,35 +278,40 @@ def generate_graph(**kwargs):
 
     # Set select all to 0 if buy back check boxes should be all unselected
     # Set select all to 2 if buy back check boxes should be all selected
-    select_all = 2
+    select_all = SHOW_ALL
     if button_id == SELECT_ALL_BUTTON:
         if check_count == checked_count:
-            select_all = 1
+            select_all = HIDE_ALL
         else:
-            select_all = 2
+            select_all = SHOW_ALL
 
+    # For each driver
     idx = 0
+    LOGGER.info("Buy Back (button_id=%s)", button_id)
     for driver_name in driver_data:
         idx += 1
         car_list = []
         for data_dict in driver_data[driver_name]:
             car_list.append(data_dict['value'])
 
-        rv1.append({'display': 'block'})
-        rv1.append(driver_data[driver_name])
-        if button_id is None or select_all == 2:
-            rv1.append(car_list)
-        elif select_all == 1:
-            rv1.append([])
-        else:
-            rv1.append(dash.no_update)
-        rv1.append(driver_name)
+        if button_id is None or button_id == URL_ID or (button_id == SELECT_ALL_BUTTON and select_all == SHOW_ALL):
+            LOGGER.info("    Buy Back: %s (%s) (show all)", driver_name, car_list)
+            add_gui_element(dash_list=rv1, display='block', driver_data=driver_data[driver_name],
+                            car_list=car_list, driver_name=driver_name)
 
+        elif select_all == HIDE_ALL:
+            LOGGER.info("    Buy Back: %s (hide all)", driver_name)
+            add_gui_element(dash_list=rv1, display='block', driver_data=driver_data[driver_name],
+                            car_list=[], driver_name=driver_name)
+
+        else:
+            LOGGER.info("    Buy Back: %s (selected)", driver_name)
+            add_gui_element(dash_list=rv1, display='block', driver_data=driver_data[driver_name],
+                            car_list=dash.no_update, driver_name=driver_name)
+
+    # Fill in unused slots
     for idx in range(idx, int(cd.ENV_VARS['MAX_RACE_COUNT'] / 2)):
-        rv1.append({'display': 'none'})
-        rv1.append(dash.no_update)
-        rv1.append(dash.no_update)
-        rv1.append(dash.no_update)
+        add_gui_element(dash_list=rv1)
 
     car_ids = []
     for data_key in kwargs:
@@ -353,3 +361,11 @@ def generate_graph(**kwargs):
             LOGGER.info(cd.HEAT_LINE % (race_id, 3))
 
     return rv1
+
+
+def add_gui_element(dash_list, display='none', driver_data=dash.no_update, car_list=dash.no_update,
+                    driver_name=dash.no_update):
+    dash_list.append({'display': display})
+    dash_list.append(driver_data)
+    dash_list.append(car_list)
+    dash_list.append(driver_name)
