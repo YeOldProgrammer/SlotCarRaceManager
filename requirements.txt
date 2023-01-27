@@ -13,6 +13,7 @@ pylint==2.8.2
 click==7.1.2
 flask_sqlalchemy==2.5.1
 visdcc==0.0.40
+requests
 
 pandas==1.1.5
 lxml==4.6.3

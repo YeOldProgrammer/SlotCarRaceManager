@@ -2,6 +2,7 @@ import os
 import sys
 import socket
 import shutil
+import requests
 from dotenv import load_dotenv
 
 APP_NAME = 'race_manager'
@@ -51,7 +52,8 @@ def load_data():
         ENV_VARS['IP_ADDRESS'] = socket.gethostbyname(socket.gethostname())
     except Exception as error_text:
         print(f"Failed to get local IP address ({error_text})")
-    ENV_VARS['IP_ADDRESS'] = '127.0.0.1'
+    # ENV_VARS['IP_ADDRESS'] = '127.0.0.1'
+    ENV_VARS['IP_ADDRESS'] = requests.get('https://api.ipify.org').content.decode('utf8')
 
     if os.path.isdir(ENV_VARS['DATA_DIR']) is False:
         print(f"Generating data directory in '{ENV_VARS['DATA_DIR']}'")
