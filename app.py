@@ -41,6 +41,8 @@ def start_app(**kwargs):
     else:
         try:
             LOGGER.info("IP ADDRESS (%s)", cd.ENV_VARS['IP_ADDRESS'])
+            print(f"IP ADDRESS ({cd.ENV_VARS['IP_ADDRESS']})")
+
             server_address = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080"
         except Exception as error_text:
             server_address = '127.0.0.1:8080'
