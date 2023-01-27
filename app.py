@@ -39,8 +39,13 @@ def start_app(**kwargs):
         LOGGER.info("Start Dash Debug Server")
         wl.DASH_APP.run_server(debug=True, dev_tools_ui=True, dev_tools_props_check=True, port=8080)
     else:
-        LOGGER.info("IP ADDRESS (%s)", cd.ENV_VARS['IP_ADDRESS'])
-        server_address = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080"
+        try:
+            LOGGER.info("IP ADDRESS (%s)", cd.ENV_VARS['IP_ADDRESS'])
+            server_address = f"http://{cd.ENV_VARS['IP_ADDRESS']}:8080"
+        except Exception as error_text:
+            server_address = '127.0.0.1:8080'
+            LOGGER.error("Failed to start server: %s", error_text, exc_info=True)
+
         LOGGER.info("Start Cheroot Web Server and Web Browser (%s)", server_address)
         webbrowser.open(server_address)
         ws.run_web_server(server)
